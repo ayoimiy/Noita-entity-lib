@@ -283,7 +283,7 @@ end
 function Entity:lifetime_comp(including_disabled)
     return self:get_comp("LifetimeComponent",including_disabled)
 end
-function Entity:control_comp(including_disabled)
+function Entity:controls_comp(including_disabled)
     return self:get_comp("ControlsComponent",including_disabled)
 end
 function Entity:genome_data_comp(including_disabled)

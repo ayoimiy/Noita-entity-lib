@@ -45,9 +45,70 @@ player:kill()
 
 #### `entity:damagemodel_comp()`等快捷方法
 等价于`Entity:get_comp("DamageModelComponent)`。
-已提供：`damgemodel_comp`、`item_comp`、`ability_comp`、`lifetime_comp`、`item_action_comp`
+已提供：
+- `damgemodel_comp`
+- `item_comp`
+- `ability_comp`
+- `lifetime_comp`
+- `item_action_comp`
+- `controls_comp`
+- `genome_data_comp`
+- `inventor2_comp`
 #### `entity:kill()`
 杀死实体，等价于`EntityKill(self.id)`
+
+--- 
+### Animals类(继承自Entity)
+#### `Animals:new(eid)`
+获取生物代理
+#### `animals:get_hp()`
+获取生物血量
+- **返回**：`hp`(number) - 该血量是真实血量的 1/25
+#### `animals:set(hp)`
+设置生物血量
+- **参数**：`hp`(number) - 同上
+#### `animals:get_max_hp()`
+获取生物的最大血量
+- **返回**：同上
+#### `animals:set_max_hp()`
+设置生物的最大血量
+同上
+#### `animals:get_damagemuls()`
+获取生物的承伤倍率
+- **返回**：(table) - key与value均为string，需要类型转化
+#### `animals:set_damage_muls(damage_muls)`
+设置生物的承伤倍率
+- **参数**：`damage_muls`(table) key为string，value为number
+
+#### `animals:get_herd_id()`
+获取生物的阵营id，失败返回nil
+- **返回**：`herd_id`(number|nil)，失败返回nil
+#### `animals:set_herd_id(herd_id)`
+设置生物的阵营id，
+- **参数**：同上
+#### `animals:add_game_effect(effect_name,frames)`
+给生物添加效果，如神佑等
+- **参数**：
+	- `effect_name`(string) - 效果名字，大写
+	- `frames`(number)  - 持续时间，-1表示永久
+---
+#### Player类
+#### `Player:new(eid)`
+获取玩家代理表
+#### `player:get_mouse_pos()`
+获取玩家鼠标位置
+- **返回**：`x,y`(number)  - 为世界坐标系
+#### `player:get_mouse_pos_in_screen(gui)`
+获取玩家鼠标位置(屏幕上的坐标)
+- **参数**；`gui`(number)  - 通过GuiCreate()获取的gui
+- **返回**：`x,y`(number) - 为屏幕坐标系
+#### `player:pick_up_item(item)`
+捡起物品
+- **参数**：`item`(table|number)，支持代理表和实体ID，将指向的物品加入到玩家背包里
+#### `player:get_wand_held()`
+获取玩家手持的魔杖
+- **返回**：`wand`(table) -魔杖实体，Wand类对象
+
 
 ---
 ### Item类(继承自Entity)
@@ -79,3 +140,15 @@ player:kill()
 	- `comp:get_id()`:返回组件ID
 	- `comp:get_object(object_name)`：返回该组件的object对象代理，同样可以用属性进行读写
 	- `comp:get_value(key_name)`：当该字段有多个返回值时，用其获取
+
+---
+计划加入的类：
+- **Perk**：天赋类？
+- 未完待续
+
+## 注意事项
+- 若实体被销毁，大部分方法会返回nil，组件读写等可能会报错
+
+## 许可证
+
+MIT[LICENSE](LICENSE)
