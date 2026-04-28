@@ -140,7 +140,6 @@ player:kill()
 	- `comp:get_id()`:返回组件ID
 	- `comp:get_object(object_name)`：返回该组件的object对象代理，同样可以用属性进行读写
 	- `comp:get_value(key_name)`：当该字段有多个返回值时，用其获取
-
 ---
 ## 计划加入的类：
 - Perk：天赋类？

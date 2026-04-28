@@ -25,6 +25,11 @@ function logger.setLogger(_Logger)
 end
 logger.setLogger(Logger)
 
+---@class Component
+---@method remove() void 移除组件
+---@method get_id() number 获取组件ID
+---@method get_value(key_name:string) any 获取组件值
+---@method get_object(object_name:string) Component 获取组件对象
 local Component = {
 }
 
@@ -35,27 +40,100 @@ local function get_id(entity)
         return entity:get_id()
     end
 end
+
+
+
 -- 实体类
+---@class Entity
+---@field id number|nil 实体ID
+---@method get_id() number 获取实体ID
+---@method get_name() string 获取实体名称
+---@method get_file_name() string 获取实体文件名称
+---@method kill() void 杀死实体
+---@method is_living() boolean 实体是否存活
+---@method get_pos() number,number 获取实体坐标
+---@method set_pos(x:number,y:number) void 设置实体坐标
+---@method has_tag(tag:string) boolean 实体是否有标签
+---@method add_tag(tag:string) void 添加实体标签
+---@method remove_tag(tag:string) void 移除实体标签
+---@method add_child(child:Entity|number) void 添加子实体
+---@method remove_child(child:Entity|number) void 移除子实体
+---@method add_comp(type_name:string,table_of_comp_values:table,tags:string,enabled:boolean) number 添加组件
+---@method add_variable_comp(table_of_comp_values:table,tags:string,enabled:boolean) number 添加变量存储组件
+---@method add_lua_comp(table_of_comp_values:table,tags:string,enabled:boolean) number 添加Lua组件
+---@method get_comp(type_name:string,including_disabled:boolean) Component|nil 获取单个组件
+---@method get_comps(type_name:string,including_disabled:boolean) Component[]|nil 获取所有组件
+---@method get_comp_object(type_name:string,object_name:string) Component|nil 获取组件对象
+---@method item_comp(including_disabled:boolean) Component|nil 获取物品组件
+---@method ability_comp(including_disabled:boolean) Component|nil 获取能力组件
+---@method item_ation_comp(including_disabled:boolean) Component|nil 获取物品动作组件
+---@method damagemodel_comp(including_disabled:boolean) Component|nil 获取伤害模型组件
+---@method lifetime_comp(including_disabled:boolean) Component|nil 获取生命周期组件
+---@method controls_comp(including_disabled:boolean) Component|nil 获取控制组件
+---@method genome_data_comp(including_disabled:boolean) Component|nil 获取基因组数据组件
+---@method inventory2_comp(including_disabled:boolean) Component|nil 获取背包组件
 local Entity = {
     id = nil 
 }
+
 -- 动物类
+---@class Animals:Entity
+---@method is_living() boolean 重写：判断实体是否存活
+---@method get_hp() number|nil 获取当前生命值
+---@method set_hp(hp:number) void 设置当前生命值
+---@method get_max_hp() number|nil 获取最大生命值
+---@method set_max_hp(max_hp:number) void 设置最大生命值
+---@method get_damage_muls() table|nil 获取承伤倍率表
+---@method set_damage_muls(damage_muls:table) void 设置承伤倍率
+---@method get_herd_id() number|nil 获取阵营ID
+---@method set_herd_id(herd_id:number) void 设置阵营ID
+---@method add_game_effect(effect_name:string,frames:number) Component|nil 添加游戏效果
 local Animals = {}
 
+
+
 -- 玩家类
+---@class Player:Animals
+---@method get_mouse_pos() number,number 获取鼠标世界坐标
+---@method get_mouse_pos_in_screen(gui:userdata) number,number 获取鼠标屏幕坐标
+---@method pick_up_item(item:Entity|number) void 拾取物品
+---@method get_wand_held() Wand 获取手持法杖
 local Player = {}
 
 -- 物品类
+---@class Item:Entity
+---@method get_ui_info() table 获取物品UI信息
+---@method set_ui_info(info:table) void 设置物品UI信息
 local Item = {}
 
 -- 法术类
+---@class Action_Card:Item
+---@method get_action_id() number|nil 获取法术ID
 local Action_Card={}
 
 -- 法杖类
+---@class Wand:Item
+---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
+---@method add_action_permanent(action_id:string) void 添加永久法术
 local Wand = {}
 --天赋类
+---@class Perk:Entity
 local Perk = {}
 
+
+
+
+-- 打包
+local M = {
+    Entity = Entity,
+    Item = Item,
+    Animals = Animals,
+    Player = Player,
+    Wand = Wand,
+    Perk = Perk,
+    Action_Card = Action_Card,
+    Logger = Logger,
+}
 
 --- 操作普通属性
 ---@param entity_id number 
@@ -563,14 +641,7 @@ function Perk:new(eid)
     return obj
 end
 
--- 打包
-local M = {
-    Entity = Entity,
-    Item = Item,
-    Animals = Animals,
-    Player = Player,
-    Logger = logger.setLogger
-}
+
 
 return M
 
