@@ -1,4 +1,10 @@
 
+
+
+-------------------------------------------------------------------------------------------
+--[[
+    日志部分
+]]
 local Logger = {
 }
 function Logger:write(msg)
@@ -25,13 +31,9 @@ function logger.setLogger(_Logger)
 end
 logger.setLogger(Logger)
 
----@class Component
----@method remove() void 移除组件
----@method get_id() number 获取组件ID
----@method get_value(key_name:string) any 获取组件值
----@method get_object(object_name:string) Component 获取组件对象
-local Component = {
-}
+--[[
+    通用函数部分
+]]
 
 local function get_id(entity)
     if type(entity) == 'number' then
@@ -40,8 +42,157 @@ local function get_id(entity)
         return entity:get_id()
     end
 end
+---@param _class_name string  类名
+---@param base? table
+local function class(_class_name,base)
+    --类的元表方法
+    local _class = setmetatable({},{
+        __index = base or nil ,   --父类方法和属性只读
+        --实现构造函数，创建实例直接用call即可，并且子类只需要写字段的初始化，而无需new 
+        __call = function (c,...)
+            local obj = setmetatable({},c)
+            if obj.init then obj:init(...) end
+            return obj
+        end
+    })    
+    --类方法，用以控制实例对象
+    _class.__index = _class
+    _class._class_name = _class_name
+    return _class
+end
+-------------------------------------------------------------------------------------------
+--[[
+    内部私有类，不暴露构造函数
+]]
 
+---@class Component 组件代表表类
+---@field entity_id number 组件所在实体的ID
+---@field id  number 组件ID
+---@method remove() void 移除组件
+---@method get_id() number 获取组件ID
+---@method get_entity_id number 获取实体ID
+---@method get_value(key_name:string) string  获取组件值
+---@method get_value2(variable_name:string) any 获取组件值，但是更快(7.5x
+---@method set_value(variable_name:string,value:string) void 设置组件值
+---@method set_value2(variable_name:string,value:any) void 设置组件值
+---@method get_object(object_name:string) Component 获取组件对象
+local Component = class("Component")
 
+---@class ComponentFactory
+---@method new(entity_id:number,comp_id:number) Component
+local ComponentFactory = {
+}
+---@class DamageModelComponent
+local DamageModelComponent = class("DamageModelComponent",Component)
+
+--- 操作普通属性
+---@param entity_id number 
+---@param comp_id number 
+---@return table 代理表proxy
+function ComponentFactory:new(entity_id,comp_id)
+    local comp = Component(entity_id,comp_id)
+    local proxy = {}
+    setmetatable(proxy,{
+        __index = function (_,variable_name)
+            if comp[variable_name] then
+               return comp[variable_name] 
+            else
+                return comp:get_value2(variable_name)
+            end           
+        end,
+        __newindex = function (_,variable_name,...)
+            if comp[variable_name] then
+                return comp:set_value(variable_name,...)
+            else
+                return comp:set_value2(variable_name,...)
+            end
+        end
+    })
+    return proxy
+end
+
+--- 代理object对象类型
+---@param object_name string
+function Component:get_object(object_name)
+    local M = {}
+    M.__index = function (_,variable_name)
+        return self:get_object_value2(object_name,variable_name)
+    end
+    M.__newindex = function (_,variable_name,...)
+        return self:set_object_value2(object_name,variable_name,...)
+    end
+    return setmetatable(M,M)
+end
+
+function Component:init(entity_id,comp_id)
+    self.entity_id = entity_id
+    self.id = comp_id
+end
+
+---@return number 组件ID
+function Component:get_id()
+    return self.id 
+end
+---@return number 实体ID
+function Component:get_entity_id()
+    return self.entity_id
+end
+---移除组件，不处理组件不存在的问题
+function Component:remove()
+    EntityRemoveComponent(self.entity_id,self.id)
+end
+---@param variable_name string 
+---@return string|nil 
+function Component:get_value(variable_name)
+    return ComponentGetValue(self.id,variable_name)
+end
+--- 更快(7.5x)
+---@param variable_name string
+---@return ...  一个或多个值 
+function Component:get_value2(variable_name)
+    return ComponentGetValue2(self.id,variable_name)
+end
+---@param variable_name string 
+---@param value string  全部都是string 
+function Component:set_value(variable_name,value)
+    ComponentSetValue(self.id,variable_name,value)
+end
+--- 更快(20x)
+---@param variable_name string 
+---@param ... any  需要具体字段的类型具体分析
+function Component:set_value2(variable_name,...)
+    ComponentSetValue2(self.id,variable_name,...)
+end
+---@param object_name string 结构体字段名
+---@param variable_name string 
+---@return string|nil 
+function Component:get_object_value(object_name,variable_name)
+    return ComponentObjectGetValue(self.id,object_name,variable_name)
+end
+---@param object_name string 结构体字段名
+---@param variable_name string 
+---@return ...  一个或多个值 
+function Component:get_object_value2(object_name,variable_name)
+    return ComponentObjectGetValue2(self.id,object_name,variable_name)
+end
+---@param object_name string 结构体字段名
+---@param variable_name string 
+---@param value string
+function Component:set_object_value(object_name,variable_name,value)
+    ComponentObjectSetValue(self.id,object_name,variable_name,value)
+end
+---@param object_name string 结构体字段名
+---@param variable_name string 
+---@param ... any 
+function Component:set_object_value2(object_name,variable_name,...)
+    ComponentObjectSetValue2(self.id,object_name,variable_name,...)
+end
+
+-------------------------------------------------------------------------------------------
+
+--[[
+    公开类，对外暴露
+]]
 
 -- 实体类
 ---@class Entity
@@ -72,9 +223,14 @@ end
 ---@method controls_comp(including_disabled:boolean) Component|nil 获取控制组件
 ---@method genome_data_comp(including_disabled:boolean) Component|nil 获取基因组数据组件
 ---@method inventory2_comp(including_disabled:boolean) Component|nil 获取背包组件
-local Entity = {
-    id = nil 
-}
+local Entity = class("Entity")
+function Entity:init(eid)
+    self.id = eid
+    if eid == nil then 
+        error("Entity:init: eid is nil")
+    end
+end
+
 
 -- 动物类
 ---@class Animals:Entity
@@ -88,9 +244,7 @@ local Entity = {
 ---@method get_herd_id() number|nil 获取阵营ID
 ---@method set_herd_id(herd_id:number) void 设置阵营ID
 ---@method add_game_effect(effect_name:string,frames:number) Component|nil 添加游戏效果
-local Animals = {}
-
-
+local Animals = class("Animals",Entity)
 
 -- 玩家类
 ---@class Player:Animals
@@ -98,32 +252,29 @@ local Animals = {}
 ---@method get_mouse_pos_in_screen(gui:userdata) number,number 获取鼠标屏幕坐标
 ---@method pick_up_item(item:Entity|number) void 拾取物品
 ---@method get_wand_held() Wand 获取手持法杖
-local Player = {}
+local Player = class("Player",Animals)
 
 -- 物品类
 ---@class Item:Entity
 ---@method get_ui_info() table 获取物品UI信息
 ---@method set_ui_info(info:table) void 设置物品UI信息
-local Item = {}
+local Item = class("Item",Entity)
 
 -- 法术类
 ---@class Action_Card:Item
 ---@method get_action_id() number|nil 获取法术ID
-local Action_Card={}
+local Action_Card=class("Action_Card",Item)
 
 -- 法杖类
 ---@class Wand:Item
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
-local Wand = {}
+local Wand = class("Wand",Item)
 --天赋类
 ---@class Perk:Entity
-local Perk = {}
+local Perk = class("Perk",Entity)
 
-
-
-
--- 打包
+-- 暴露的函数
 local M = {
     Entity = Entity,
     Item = Item,
@@ -135,74 +286,8 @@ local M = {
     Logger = Logger,
 }
 
---- 操作普通属性
----@param entity_id number 
----@param comp_id number 组件ID
----@return table 代理表proxy
-function Component:new(entity_id,comp_id)
-    local obj = {
-    }
-    setmetatable(obj,{
-          __index = function (_,key)
-            if key == "remove" then
-                return function ()
-                    EntityRemoveComponent(entity_id,comp_id)
-                end
-            elseif key == "get_id" then
-                return function ()
-                    return comp_id
-                end
-            elseif key == "get_value" then
-                return function (key_name)
-                    return ComponentGetValue2(comp_id,key_name)
-                end
-            elseif key == "get_object" then
-                return function (object_name)
-                    local M = {}
-                    setmetatable(M,{
-                        __index =function(_,key_name)
-                            ComponentObjectGetValue2(comp_id,object_name,key_name)
-                        end,
-                        __newindex = function (_,key_name,value)
-                            ComponentObjectSetValue2(comp_id,object_name,key_name,value)
-                        end
-                    })
-                    return M
-                end
-            else
-                local value = ComponentGetValue2(comp_id,key)
-                -- GamePrint("第一次获取" .. value)
-                -- if not value then
-                --     value = ComponentGetValue(comp_id,key)
-                --     -- GamePrint("第二次获取" .. value)
-                -- end
-                return value
-            end            
-        end,
-        __newindex = function(_,key,value)
-            return ComponentSetValue2(comp_id,key,value)
-        end   
-    })
-    return obj
-end
---- 操作object对象
----@param entity_id number
----@param comp_id number
----@param object_name string
-function Component:new_object(entity_id,comp_id,object_name)
-    local comp  = Component:new(entity_id,comp_id)
-    if not comp then return nil end 
-    return comp.get_object(object_name)
-end
 
-Entity.__index = Entity
----@param eid number
-function Entity:new(eid)
-    local obj = {}
-    obj.id = eid 
-    setmetatable(obj,Entity)
-    return obj
-end
+
 -- 获取id 
 --- @return number 
 function Entity:get_id()
@@ -215,19 +300,17 @@ function Entity:get_name()
         logger:warn(tostring(self.id) .. "不存在名字")
         name = ""
     end
-    return GameTextGetTranslatedOrNot(name )
+    return GameTextGetTranslatedOrNot(name)
 end
 function Entity:get_file_name()
     return EntityGetFilename(self.id)
 end
-
 function Entity:kill()
     if self:is_living() then
         EntityKill(self.id)
         self.id = nil 
     end
 end
-
 -- 是否存活
 function Entity:is_living()
     if self.id == nil then
@@ -275,8 +358,8 @@ end
 ---给实体添加组件
 ---@param type_name string 组件类型名
 ---@param table_of_comp_values table 组件的键值表
----@param tags string  组件tags,以逗号分割
----@param enabled boolean 是否启用
+---@param tags? string  组件tags,以逗号分割
+---@param enabled? boolean 是否启用
 ---@return number 组件ID
 function Entity:add_comp(type_name,table_of_comp_values,tags,enabled)
     local t = table_of_comp_values
@@ -284,9 +367,17 @@ function Entity:add_comp(type_name,table_of_comp_values,tags,enabled)
     if enabled ~= nil then t._enabled = enabled end
     return EntityAddComponent2(self.id,type_name,t)
 end
+---@param table_of_comp_values table 组件的键值表
+---@param tags? string  组件tags,以逗号分割
+---@param enabled? boolean 是否启用
+---@return number 组件ID
 function Entity:add_variable_comp(table_of_comp_values,tags,enabled)
     return self:add_comp("VariableStorageComponent",table_of_comp_values,tags,enabled)
 end
+---@param table_of_comp_values table 组件的键值表
+---@param tags? string  组件tags,以逗号分割
+---@param enabled? boolean 是否启用
+---@return number 组件ID
 function Entity:add_lua_comp(table_of_comp_values,tags,enabled)
     return self:add_comp("LuaComponent",table_of_comp_values,tags,enabled)
 end
@@ -294,7 +385,7 @@ end
 
 --- 获取组件
 ---@param type_name string
----@param including_disabled boolean
+---@param including_disabled boolean|nil
 ---@return table|nil
 function Entity:get_comp(type_name,including_disabled)
     if not self:is_living() then return nil end
@@ -309,12 +400,12 @@ function Entity:get_comp(type_name,including_disabled)
         return nil
     end
     -- 提供一个可以读写的代理表
-    return Component:new(self.id,comp)
+    return ComponentFactory:new(self.id,comp)
 end
 
 --- 获取组件s
 ---@param type_name string
----@param including_disabled boolean
+---@param including_disabled boolean|nil
 ---@return table|nil
 function Entity:get_comps(type_name,including_disabled)
     if not self:is_living() then return nil end
@@ -330,22 +421,14 @@ function Entity:get_comps(type_name,including_disabled)
     end
     local proxies = {}
     for _,comp_id in ipairs(comps) do 
-        table.insert(proxies,Component:new(self.id,comp_id))
+        table.insert(proxies,ComponentFactory:new(self.id,comp_id))
     end
     return proxies
 end
 
--- 获取object
---- func desc
----@param type_name string
----@param object_name string
----@return table|nil
-function Entity:get_comp_object(type_name,object_name)
-    if not EntityGetIsAlive(self.id) then return nil end
-    local comp = EntityGetFirstComponentIncludingDisabled(self.id,type_name)
-    if not comp then return nil end
-    return Component:new_object(self.id,comp,object_name)
-end
+
+
+
 function Entity:item_comp(including_disabled)
     return self:get_comp("ItemComponent",including_disabled)
 end
@@ -372,15 +455,7 @@ function Entity:inventory2_comp(including_disabled)
 end
 
 
-Animals.__index = Animals
-setmetatable(Animals,Entity)
----@param eid number 生物名字
----@return table 
-function Animals:new(eid)
-    local obj = Entity:new(eid)
-    setmetatable(obj,self)
-    return obj
-end
+
 function Animals:is_living()
     if self.id == nil then
         logger:warn("实体不存在")
@@ -421,7 +496,9 @@ function Animals:get_damage_muls()
     return ComponentObjectGetMembers(comp,"damage_multipliers")
 end
 function Animals:set_damage_muls(damage_muls)
-    local damage_multipliers = self:get_comp_object("DamageModelComponent","damage_multipliers")
+    local comp = self:damagemodel_comp()
+    if not comp then return nil end
+    local damage_multipliers = comp:get_comp_object("damage_multipliers")
     if not damage_multipliers  then return nil end 
     for type,mul in pairs(damage_muls) do
         damage_multipliers[type] =mul
@@ -442,7 +519,7 @@ end
 ---@param effect_name string
 function Animals:add_game_effect(effect_name,frames)
     local comp_id = GetGameEffectLoadTo(self.id,effect_name,true)
-    local comp = Component:new(self.id,comp_id) 
+    local comp = ComponentFactory:new(self.id,comp_id) 
     if comp ~= nil then
         comp.frames = frames or -1
     else
@@ -452,13 +529,6 @@ function Animals:add_game_effect(effect_name,frames)
 end
 
 
-Player.__index = Player
-setmetatable(Player,Animals)
-function Player:new(eid)
-    local obj = Animals:new(eid)
-    setmetatable(obj,self)
-    return obj
-end
 ---获取鼠标位置
 function Player:get_mouse_pos()
     return DEBUG_GetMouseWorld()
@@ -493,7 +563,7 @@ function Player:get_wand_held()
 	if ( inventory2_comp ~= nil ) then
 		local active_item =inventory2_comp.mActiveItem 
 		if ( EntityHasTag( active_item, "wand" ) ) then
-			return Wand:new(active_item)
+			return Wand(active_item)
 		end
 	end
 
@@ -522,13 +592,7 @@ function Player:get_wand_held()
 	return backup_result
 end
 
-Item.__index = Item
-setmetatable(Item,Entity)
-function Item:new(eid)
-    local obj = Entity:new(eid)
-    setmetatable(obj,self)
-    return obj
-end
+
 -- 获取ui
 function Item:get_ui_info()
     local info = {}
@@ -567,14 +631,6 @@ function Item:set_ui_info(info)
         end
     end
 end
-
-Action_Card.__index = Action_Card
-setmetatable(Action_Card,Item)
-function Action_Card:new(eid)
-    local obj = Item:new(eid)
-    setmetatable(obj,self)
-    return obj
-end
 -- 获取法术id
 function Action_Card:get_action_id()
     local comp = self:item_ation_comp()
@@ -584,28 +640,19 @@ function Action_Card:get_action_id()
     end
     return nil 
 end
-
-Wand.__index = Wand
-setmetatable(Wand,Item)
-function Wand:new(eid)
-    local obj = Item:new(eid)
-    setmetatable(obj,self)
-    return obj
-end
-
 function Wand:add_action(action_id,dont_add_when_full)
     if( action_id == "" ) then return 0 end
     if (dont_add_when_full) then
         local ability_comp = self:ability_comp(true) 
         if( ability_comp ~= nil ) then
-            local deck_capacity = Component:new_object(self.id,ability_comp:get_id(),"gun_config")
+            local deck_capacity = ability_comp:get_comp_object("gun_config")
             local n = #(EntityGetAllChildren(self.id,"card_action") or {})
             if n+1> deck_capacity.deck_capacity then
                 return 
             end
         end
     end
-	local action_entity = Action_Card:new(CreateItemActionEntity( action_id ))
+	local action_entity = Action_Card(CreateItemActionEntity( action_id ))
     self:add_child(action_entity)
 	if action_entity ~= 0 then
 		EntitySetComponentsWithTagEnabled( action_entity:get_id(), "enabled_in_world", false )
@@ -613,16 +660,17 @@ function Wand:add_action(action_id,dont_add_when_full)
 end
 function Wand:add_action_permanent(action_id)
     if( action_id == "" ) then return 0 end
-	local action_entity = Action_Card:new(CreateItemActionEntity( action_id ))
+	local action_entity = Action_Card(CreateItemActionEntity( action_id ))
     self:add_child(action_entity)
 	-- we need to add a slot to the ability_comp
     
 	local ability_comp = self:ability_comp(true) 
 	if( ability_comp ~= nil ) then
-        local deck_capacity = Component:new_object(self.id,ability_comp:get_id(),"gun_config")
-        deck_capacity.deck_capacity = deck_capacity.deck_capacity +1
+        local deck_capacity = ability_comp:get_comp_object("gun_config")
+        if deck_capacity then
+            deck_capacity.deck_capacity = deck_capacity.deck_capacity +1
+        end        
 	end
-
 	local item_component = action_entity:item_comp(false) 
 	if( item_component ~= nil ) then
         item_component.permanently_attached = true
@@ -632,17 +680,6 @@ function Wand:add_action_permanent(action_id)
 		EntitySetComponentsWithTagEnabled( action_entity:get_id(), "enabled_in_world", false )
 	end
 end
-
--- 天赋
-Perk.__index = Entity
-function Perk:new(eid)
-    local obj  = Entity:new(eid)
-    setmetatable(obj,Perk)
-    return obj
-end
-
-
-
 return M
 
 
