@@ -642,7 +642,7 @@ function Item:set_ui_info(info)
 end
 ---@return number,number
 function Item:get_slot()
-    local item_comp = self:item_comp()
+    local item_comp = self:item_comp(true)
     local x,y = item_comp:get_value2("inventory_slot")
     return x,y
 end
@@ -706,14 +706,12 @@ function Wand:get_actions()
     local actions = EntityGetAllChildren(self.id)
     local cards = {}
     for i,v in ipairs(actions or {}) do
-      
-           table.insert(cards, Action_Card(v)) 
-   
+        table.insert(cards, Action_Card(v)) 
     end
     --将actions排序
     table.sort(cards,function(a,b)
-        local a_x = a:get_slot()
-        local b_x = b:get_slot()
+        local a_x = a:get_slot() or -1
+        local b_x = b:get_slot() or -1
         return a_x < b_x
     end)
     return cards
