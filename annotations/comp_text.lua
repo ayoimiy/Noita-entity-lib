@@ -1,0 +1,2245 @@
+
+
+---@class AIAttackComponent : Component
+---@field use_probability number @The probability for using this attack if it's otherwise possible [default: 100, range: [0, 100]]
+---@field min_distance number @The minimum distance from enemy at which we can perform this attack. [default: 10, range: [0, 10000]]
+---@field max_distance number @The maximum distance from enemy at which we can perform this attack. [default: 160, range: [0, 10000]]
+---@field angular_range_deg number @When looking for threats/prey this is our field of view around the X axis. 90 means we scan the whole 180 degrees around the X axis, to the left and right. [default: 90, range: [0, 90]]
+---@field state_duration_frames number @How long do we stay in the attack state, before other states are allowed? [default: 45, range: [0, 1000]]
+---@field frames_between number @The minimum number of frames we wait between these attacks [default: 180, range: [0, 1000]]
+---@field frames_between_global number @The minimum number of frames we wait after this attack before doing any other ranged attack [default: 30, range: [0, 1000]]
+---@field animation_name string @The animation to play when performing this attack [default: attack_ranged, range: [0, 1]]
+---@field attack_landing_ranged_enabled boolean @If 1, we try to land before doing the attack, if there's ground near nearby under us [default: 0, range: [0, 1]]
+---@field attack_ranged_action_frame number @The frame of the 'attack_ranged' animation during which the ranged attack actually occurs [default: 2, range: [0, 1000]]
+---@field attack_ranged_offset_x number @'attack_ranged_entity_file' is created here when performing a ranged attack [default: 0, range: [-1000, 1000]]
+---@field attack_ranged_offset_y number @'attack_ranged_entity_file' is created here when performing a ranged attack [default: 0, range: [-1000, 1000]]
+---@field attack_ranged_root_offset_x number @[default: 0, range: [-1000, 1000]]
+---@field attack_ranged_root_offset_y number @[default: 0, range: [-1000, 1000]]
+---@field attack_ranged_use_message boolean @If 1, we do ranged attacks by sending a Message_UseItem [default: 0, range: [0, 1]]
+---@field attack_ranged_predict boolean @If 1, we attempt to predict target movement and shoot accordingly [default: 0, range: [0, 1]]
+---@field attack_ranged_entity_file string @File to projectile entity that is created when performing a ranged attack [default: data/entities/projectiles/spear.xml, range: [0, 1]]
+---@field attack_ranged_entity_count_min number @Minimum number of projectiles shot when performing a ranged attack [default: 1, range: [0, 1000]]
+---@field attack_ranged_entity_count_max number @Maximum number of projectiles shot when performing a ranged attack [default: 1, range: [0, 1000]]
+---@field attack_ranged_use_laser_sight boolean @If 1, we draw a laser sight to our target. Requires entity to have a sprite with tag 'laser_sight' [default: 0, range: [0, 1]]
+---@field attack_ranged_aim_rotation_enabled boolean @If 1, we use a laser sight [default: 0, range: [0, 1]]
+---@field attack_ranged_aim_rotation_speed number @How fast can we rotate our aim to track targets [default: 3, range: [0, 1]]
+---@field attack_ranged_aim_rotation_shooting_ok_angle_deg number @If our aim is closer than this to the target we shoot [default: 10, range: [0, 1]]
+---@field mRangedAttackCurrentAimAngle number @(private) which direction does our gun currently point at, physically saying? [default: 0, range: [0, 1]]
+---@field mNextFrameUsable number @(private) [default: 0, range: [0, 1]]
+---@class AIComponent : Component
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@field data userdata @(private)
+---@class AbilityComponent : Component
+---@field cooldown_frames number @[default: 0, range: [0, 60000]]
+---@field entity_file string @the projectile entity file
+---@field sprite_file string
+---@field entity_count number @[default: 1, range: [0, 60000]]
+---@field never_reload boolean @[default: 0, range: [0, 1]]
+---@field reload_time_frames number @[default: 0, range: [0, 1]]
+---@field mana number @[default: 0, range: [0, 1]]
+---@field mana_max number @[default: 100, range: [0, 1]]
+---@field mana_charge_speed number @[default: 10, range: [0, 1]]
+---@field rotate_in_hand boolean @[default: 1, range: [0, 1]]
+---@field rotate_in_hand_amount number @[0-1], how much does the item rotate related to the actual aiming angle [default: 1, range: [0, 1]]
+---@field rotate_hand_amount number @[0-1], how much does hand sprite rotate related to the actual aiming angle [default: 0.7, range: [0, 1]]
+---@field fast_projectile boolean @if 1, then the velocity of the bullet is increased quite a bit. Lightning requires this [default: 0, range: [0, 1]]
+---@field swim_propel_amount number @[default: 0, range: [-1000, 1000]]
+---@field max_charged_actions number @[default: 0, range: [0, 1]]
+---@field charge_wait_frames number @[default: 10, range: [0, 1]]
+---@field item_recoil_recovery_speed number @How quickly does the item return to resting state after getting recoil [default: 15, range: [0, 1]]
+---@field item_recoil_max number @Maximum distance moved by recoil [default: 1, range: [0, 1]]
+---@field item_recoil_offset_coeff number @Item distance moved by recoil = mItemRecoil * item_recoil_offset_coeff [default: 1, range: [0, 1]]
+---@field item_recoil_rotation_coeff number @Item rotation by recoil = mItemRecoil * item_recoil_rotation_coeff [default: 5, range: [0, 1]]
+---@field base_item_file string @when dropping / throwing the item, this is the base_item that we add the ability component to [default: data/entities/base_item.xml, range: [0, 1]]
+---@field use_entity_file_as_projectile_info_proxy boolean @[default: 0, range: [0, 1]]
+---@field click_to_use boolean @[default: 1, range: [0, 1]]
+---@field stat_times_player_has_shot number @used to track how many times player has shot this 'ability' [default: 0, range: [0, 1]]
+---@field stat_times_player_has_edited number @used to track how many times this has been edited [default: 0, range: [0, 1]]
+---@field shooting_reduces_amount_in_inventory boolean @[default: 0, range: [0, 1]]
+---@field throw_as_item boolean @[default: 0, range: [0, 1]]
+---@field simulate_throw_as_item boolean @If 1, the item will be work as normal ability, but throwing animation is played by the user [default: 0, range: [0, 1]]
+---@field max_amount_in_inventory number @[default: 1, range: [0, 1]]
+---@field amount_in_inventory number @[default: 1, range: [0, 1]]
+---@field drop_as_item_on_death boolean @[default: 1, range: [0, 1]]
+---@field ui_name string @way to name the weapons [default: [NOT_SET], range: [0, 1]]
+---@field use_gun_script boolean @If 1, the default ability behaviour is replaced with one that uses the lua gun system. [default: 0, range: [0, 1]]
+---@field is_petris_gun boolean @if 1, TODO( PETRI) [default: 0, range: [0, 1]]
+---@field gun_level number @the level of the wand, set in gun_procedural.lua [default: 1, range: [1, 10]]
+---@field add_these_child_actions string @e.g. 'bullet,bullet,damage' ... actions are parsed into a string. These are added as actual entities when the item is initialized
+---@field current_slot_durability number @After this many slots the last slot of the gun is removed. -1 means not initialized/infinite. [default: -1, range: [0, 1]]
+---@field slot_consumption_function string @Name of the lua function in 'gun.lua' that is called to calculate durability of the last slot in the gun [default: _get_gun_slot_durability_default, range: [0, 1]]
+---@field mNextFrameUsable number @hax, don't touch! [default: 0, range: [0, 1]]
+---@field mCastDelayStartFrame number @hax, don't touch! [default: 0, range: [0, 1]]
+---@field mReloadFramesLeft number @hax, don't touch! [default: 0, range: [0, 1]]
+---@field mReloadNextFrameUsable number @hax, don't touch! [default: 0, range: [0, 1]]
+---@field mChargeCount number @hax, don't touch! [default: 0, range: [0, 1]]
+---@field mIsInitialized boolean @[default: 0, range: [0, 1]]
+---@field mAmmoLeft number @(private) [default: 0, range: [0, 1]]
+---@field mNextChargeFrame number @(private) [default: 0, range: [0, 1]]
+---@field mItemRecoil number @(private) [default: 0, range: [0, 1]]
+---@field gun_config table @(object) Constants for gun script
+---@field gunaction_config table @(object) Constants for gun script
+---@class AdvancedFishAIComponent : Component
+---@field move_check_range_min number @[default: 16, range: [0, 2]]
+---@field move_check_range_max number @[default: 64, range: [0, 2]]
+---@field flock boolean @(private) [default: 1, range: [0, 1]]
+---@field avoid_predators boolean @(private) [default: 1, range: [0, 1]]
+---@field mHasTargetDirection boolean @(private) [default: 0, range: [0, 1]]
+---@field mTargetPos table @(private)
+---@field mTargetVec table @(private)
+---@field mLastFramesMovementAreaMin table @(private)
+---@field mLastFramesMovementAreaMax table @(private)
+---@field mNumFailedTargetSearches number @(private) [default: 0, range: [0, 1]]
+---@field mNextFrameCheckAreWeStuck number @(private) [default: -1, range: [0, 1]]
+---@field mNextFrameCheckFlockWants number @(private) [default: -1, range: [0, 1]]
+---@field mNextFramePredatorAvoidance number @(private) [default: -1, range: [0, 1]]
+---@field mScared number @(private) [default: 0, range: [0, 1]]
+---@field mWantsToBeInFlock boolean @(private) [default: 1, range: [0, 1]]
+---@class AltarComponent : Component
+---@field recognized_entity_tags string
+---@field uses_remaining number @[default: 3, range: [0, 1]]
+---@field m_recognized_entity_tags table @(private)
+---@field m_recognized_entity_tags_count number @(private) [default: 0, range: [0, 1]]
+---@field m_current_entity_tags table @(private)
+---@field good_fx_material number @(custom type) String name of material for particles emitted on successful sacrifice [default: 0, range: [0, 1]]
+---@field neutral_fx_material number @(custom type) String name of material for particles emitted on successful sacrifice [default: 0, range: [0, 1]]
+---@field evil_fx_material number @(custom type) String name of material for particles emitted on successful sacrifice [default: 0, range: [0, 1]]
+---@class AnimalAIComponent : Component
+---@field ai_state number @Current state of ai, defines what the animal is doing [default: 0, range: [0, 20]]
+---@field ai_state_timer number @If not 0, then we wait till this frame to pop current state from our state stack [default: 0, range: [0, 1000]]
+---@field keep_state_alive_when_enabled boolean @if 1, will ensure state timer keeps current state alive for a while when Component is Enabled [default: 0, range: [0, 1]]
+---@field preferred_job string @We always do this job, unless interrupted (i.e. by taking fire damage)
+---@field escape_if_damaged_probability number @the chance of escaping if someone damages us. only works if 'can_fly = 0 ' [default: 30, range: [0, 1]]
+---@field attack_if_damaged_probability number @the chance of counter-attacking if someone damages us, and we didn't escape [default: 100, range: [0, 1]]
+---@field eye_offset_x number @We cast rays from our position + eye_offset to check if we can see something [default: 0, range: [-100, 100]]
+---@field eye_offset_y number @We cast rays from our position + eye_offset to check if we can see something [default: 0, range: [-100, 100]]
+---@field attack_only_if_attacked boolean @If 1, we never attack anyone unless attacked before by someone [default: 0, range: [0, 1]]
+---@field dont_counter_attack_own_herd boolean @If 1, we don't attack members of our herd even if they accidentally attack us [default: 0, range: [0, 1]]
+---@field creature_detection_range_x number @When looking for threats/prey this is the max distance from us on the X axis we scan [default: 50, range: [0, 2000]]
+---@field creature_detection_range_y number @When looking for threats/prey this is the max distance from us on the Y axis we scan [default: 20, range: [0, 2000]]
+---@field creature_detection_angular_range_deg number @When looking for threats/prey this is our field of view around the X axis. 90 means we scan the whole 180 degrees around the X axis, to the left and right [default: 90, range: [0, 90]]
+---@field creature_detection_check_every_x_frames number @Checks for threats/prey take place at least this many frames apart from each other [default: 120, range: [0, 5000]]
+---@field max_distance_to_cam_to_start_hunting number @JobDefault idles before we've been once at least this close to the camera [default: 300, range: [0, 2000]]
+---@field pathfinding_max_depth_no_target number @The maximum depth (in nodes) path search use when we have not found prey yet [default: 50, range: [0, 5000]]
+---@field pathfinding_max_depth_has_target number @The maximum depth (in nodes) path search use when we have found prey [default: 120, range: [0, 5000]]
+---@field aggressiveness_min number @what's the initial random aggressiveness of this creature [default: 80, range: [0, 100]]
+---@field aggressiveness_max number @what's the initial random aggressiveness of this creature [default: 100, range: [0, 100]]
+---@field tries_to_ranged_attack_friends boolean @if 1, the AI tries to attack whoever it considers a friend based on herd_ids, CHARMED and BERSERK status etc. useful e.g. for healers. [default: 0, range: [0, 1]]
+---@field attack_melee_enabled boolean @If 1, and melee attack has been configured, we can perform melee attacks [default: 1, range: [0, 1]]
+---@field attack_dash_enabled boolean @If 1, and dash attack has been configured, we can perform dash attacks (a long-distance melee attack where we dash towards the enemy) [default: 0, range: [0, 1]]
+---@field attack_landing_ranged_enabled boolean @If 1, and ranged attack has been configured, we can perform ranged attacks [default: 0, range: [0, 1]]
+---@field attack_ranged_enabled boolean @If 1, and ranged attack has been configured, we can perform ranged attacks [default: 0, range: [0, 1]]
+---@field attack_knockback_multiplier number @If not 0, melee and dash attacks cause knockback to target [default: 100, range: [-100, 100]]
+---@field is_static_turret boolean @If 1, we can only attack in one fixed direction [default: 0, range: [0, 1]]
+---@field attack_melee_max_distance number @Maximum distance at which we can perform a melee attack [default: 20, range: [0, 400]]
+---@field attack_melee_action_frame number @The animation frame during which the melee attack damage is inflicted and visual effects are created [default: 2, range: [0, 1000]]
+---@field attack_melee_frames_between number @The minimum number of frames we wait between melee attacks [default: 10, range: [0, 1000]]
+---@field attack_melee_damage_min number @Melee attack damage inclusive minimum amount. The damage is randomized between melee attack_damage_min and attack_melee_damage_max [default: 0.4, range: [0, 100]]
+---@field attack_melee_damage_max number @Melee attack damage inclusive maximum amount. The damage is randomized between melee attack_damage_min and attack_melee_damage_max [default: 0.6, range: [0, 100]]
+---@field attack_melee_impulse_vector_x number @The x component of the impulse that is applied to damaged entities [default: 0, range: [-100, 100]]
+---@field attack_melee_impulse_vector_y number @The y component of the impulse that is applied to damaged entities [default: 0, range: [-100, 100]]
+---@field attack_melee_impulse_multiplier number @A multiplier applied to attack_melee_impulse [default: 0, range: [-100, 100]]
+---@field attack_melee_offset_x number @Melee attack particle effects are created here [default: 0, range: [-1000, 1000]]
+---@field attack_melee_offset_y number @Melee attack particle effects are created here [default: 0, range: [-1000, 1000]]
+---@field attack_melee_finish_enabled boolean @If 1, we perform a finishing move when our attack would kill the target using the 'attack_finish' animation [default: 0, range: [0, 1]]
+---@field attack_melee_finish_action_frame number @The animation frame during which the melee attack finishing move damage is inflicted and visual effects are created [default: 2, range: [0, 1000]]
+---@field attack_dash_distance number @The maximum distance from enemy at which we can perform a dash attack. If a normal melee attack is possible we always do that instead [default: 50, range: [0, 10000]]
+---@field attack_dash_frames_between number @The minimum number of frames we wait between dash attacks [default: 120, range: [0, 1200]]
+---@field attack_dash_damage number @The amount of damage inflicted by the dash attack [default: 0.25, range: [0, 20]]
+---@field attack_dash_speed number @The speed at which we dash [default: 200, range: [0, 5000]]
+---@field attack_dash_lob number @The smaller this value is the more curved our dash attack trajectory is [default: 0.9, range: [0, 6]]
+---@field attack_ranged_min_distance number @The minimum distance from enemy at which we can perform a ranged attack. [default: 10, range: [0, 10000]]
+---@field attack_ranged_max_distance number @The maximum distance from enemy at which we can perform a ranged attack. [default: 160, range: [0, 10000]]
+---@field attack_ranged_action_frame number @The frame of the 'attack_ranged' animation during which the ranged attack actually occurs [default: 2, range: [0, 1000]]
+---@field attack_ranged_offset_x number @'attack_ranged_entity_file' is created here when performing a ranged attack [default: 0, range: [-1000, 1000]]
+---@field attack_ranged_offset_y number @'attack_ranged_entity_file' is created here when performing a ranged attack [default: 0, range: [-1000, 1000]]
+---@field attack_ranged_use_message boolean @If 1, we do ranged attacks by sending a Message_UseItem [default: 0, range: [0, 1]]
+---@field attack_ranged_predict boolean @If 1, we attempt to predict target movement and shoot accordingly [default: 0, range: [0, 1]]
+---@field attack_ranged_entity_file string @File to projectile entity that is created when performing a ranged attack [default: data/entities/projectiles/spear.xml, range: [0, 1]]
+---@field attack_ranged_entity_count_min number @Minimum number of projectiles shot when performing a ranged attack [default: 1, range: [0, 1000]]
+---@field attack_ranged_entity_count_max number @Maximum number of projectiles shot when performing a ranged attack [default: 1, range: [0, 1000]]
+---@field attack_ranged_use_laser_sight boolean @If 1, we draw a laser sight to our target. Requires entity to have a sprite with tag 'laser_sight' [default: 0, range: [0, 1]]
+---@field attack_ranged_laser_sight_beam_kind boolean @0 = red, 1 = blue  [default: 0, range: [0, 1]]
+---@field attack_ranged_aim_rotation_enabled boolean @[default: 0, range: [0, 1]]
+---@field attack_ranged_aim_rotation_speed number @[default: 3, range: [0, 1]]
+---@field attack_ranged_aim_rotation_shooting_ok_angle_deg number @[default: 10, range: [0, 1]]
+---@field attack_ranged_state_duration_frames number @How long do we stay in the attack state, before other states are allowed? [default: 45, range: [0, 1000]]
+---@field hide_from_prey boolean @If 1, we attempt to hide from our target after a succesful attack [default: 0, range: [0, 1]]
+---@field hide_from_prey_target_distance number @The minimum distance from our target where we should move when hiding [default: 200, range: [0, 10000]]
+---@field hide_from_prey_time number @The number of frames we spend hiding and staying hiding [default: 300, range: [0, 1]]
+---@field food_eating_create_particles boolean @If 1, we replace eaten cells with particles made of this material [default: 1, range: [0, 1]]
+---@field eating_area_radius_x number @1/2 width of the area from which we eat food [default: 3, range: [-100, 100]]
+---@field eating_area_radius_y number @1/2 height of the area from which we eat food [default: 8, range: [-100, 100]]
+---@field mouth_offset_x number @The center of the area from which we eat food [default: 0, range: [-100, 100]]
+---@field mouth_offset_y number @The center of the area from which we eat food [default: 0, range: [-100, 100]]
+---@field defecates_and_pees boolean @If 1, we occasionally take a leak or a dump [default: 0, range: [0, 1]]
+---@field butt_offset_x number @Bodily wastes are created here [default: 0, range: [-100, 100]]
+---@field butt_offset_y number @Bodily wastes are created here [default: 0, range: [-100, 100]]
+---@field pee_velocity_x number @The velocity at which our piss gets shot [default: 0, range: [-1000, 1000]]
+---@field pee_velocity_y number @The velocity at which our piss gets shot [default: 0, range: [-1000, 1000]]
+---@field needs_food boolean @If 1, we stop to eat if we encounter 'food_material' cells [default: 1, range: [0, 1]]
+---@field sense_creatures boolean @If 1, we occasionally search our surroundings for prey and threats [default: 1, range: [0, 1]]
+---@field sense_creatures_through_walls boolean @If 1, will see creatures even if the wall raycast fails [default: 0, range: [0, 1]]
+---@field can_fly boolean @If 1, we can fly. Please set 'PathFindingComponent.can_fly' to 1 as well if this is 1 [default: 1, range: [0, 1]]
+---@field can_walk boolean @If 1, we can walk. Please set 'PathFindingComponent.can_walk' to 1 as well if this is 1 [default: 1, range: [0, 1]]
+---@field path_distance_to_target_node_to_turn_around number @If we're further than this from target path finding node on the X-axis we turn to face it [default: 0, range: [0, 1000]]
+---@field path_cleanup_explosion_radius number @If we get stuck on ground we create an explosion this big to clear our surroundings a bit [default: 6, range: [0, 1000]]
+---@field max_distance_to_move_from_home number @[default: 0, range: [0, 1]]
+---@field mAiStateStack table @(private) a stack of actions and times they take, we can push new actions to the front and pop them from there
+---@field mAiStateLastSwitchFrame number @(private) when was the last time we switched a state [default: 0, range: [0, 1]]
+---@field mAiStatePrev number @(private) previous AI state [default: 0, range: [0, 1]]
+---@field mCreatureDetectionNextCheck number @(private) threat/prey check, next time we check for threat/prey [default: 0, range: [0, 1]]
+---@field mGreatestThreat number @(private) the entity we consider to be our greatest threat [default: 0, range: [0, 1]]
+---@field mGreatestPrey number @(private) the entity we consider to be our most important prey [default: 0, range: [0, 1]]
+---@field mSelectedMultiAttack number @(private) which AIAttackComponent attack are we using? [default: -1, range: [0, 1]]
+---@field mHasFoundPrey boolean @(private) 1, if we have ever found prey [default: 0, range: [0, 1]]
+---@field mHasBeenAttackedByPlayer boolean @(private) 1, if we have been ever attacked [default: 0, range: [0, 1]]
+---@field mHasStartedAttacking boolean @(private) 1, if we have ever started attacking anyone [default: 0, range: [0, 1]]
+---@field mNearbyFoodCount number @(private) amount of 'food_material' near us [default: 0, range: [0, 1]]
+---@field mEatNextFrame number @(private) next frame we can eat [default: 0, range: [0, 1]]
+---@field mEatTime number @(private) time we've been constantly eating [default: 0, range: [0, 1]]
+---@field mFrameNextGiveUp number @(private) next frame we consider ourselves to be stuck [default: 0, range: [0, 1]]
+---@field mLastFramesMovementAreaMin table @(private) AABB min of the area where we've been since the last time we got stuck
+---@field mLastFramesMovementAreaMax table @(private) AABB max of the area where we've been since the last time we got stuck
+---@field mFoodMaterialId number @(private) cached id of 'food_material' [default: -1, range: [0, 1]]
+---@field mFoodParticleEffectMaterialId number @(private) cached id of 'food_particle_effect_material' [default: -1, range: [0, 1]]
+---@field mNextJumpLob number @(private) we use this for next jump [default: 1, range: [0, 1]]
+---@field mNextJumpTarget table @(private) we use this for next jump
+---@field mNextJumpHasVelocity boolean @(private) we use this for next jump [default: 0, range: [0, 1]]
+---@field mLastFrameJumped number @(private) previous frame we launched into a jump [default: -1, range: [0, 1]]
+---@field mFramesWithoutTarget number @(private) [default: 0, range: [0, 1]]
+---@field mLastFrameCanDamageOwnHerd number @(private) [default: -1, range: [0, 1]]
+---@field mHomePosition table @(private) where our home is located
+---@field mLastFrameAttackWasDone number @(private) when was the last time we did an attack (not necessarily did damage to anyone though) [default: 0, range: [0, 1]]
+---@field mNextFrameCanCallFriend number @(private) [default: 0, range: [0, 1]]
+---@field mNextFrameRespondFriend number @(private) [default: -1, range: [0, 1]]
+---@field mHasNoticedPlayer boolean @(private) if 1, we have noticed player or player projectile [default: 0, range: [0, 1]]
+---@field mRangedAttackCurrentAimAngle number @(private) which direction does our gun currently point at, physically saying? [default: 0, range: [0, 1]]
+---@field mRangedAttackNextFrame number @(private) next frame we can perform a ranged attack [default: 0, range: [0, 1]]
+---@field mMeleeAttackNextFrame number @(private) next frame we can perform a melee attack [default: 0, range: [0, 1]]
+---@field mNextMeleeAttackDamage number @(private) the amount of damage our next melee attack will cause. used by finishing move logic [default: 0, range: [0, 1]]
+---@field mMeleeAttacking boolean @(private) 1, if we're doing a melee attack [default: 0, range: [0, 1]]
+---@field mMeleeAttackDashNextFrame number @(private) the next frame we can perform a melee attack [default: 0, range: [0, 1]]
+---@field mCurrentJob table @(private) info about our current job. sorta legacy and could be simplified because the RTS logic is not used anywhere but doesn't have much overhead either.
+---@field attack_melee_finish_config_explosion table @(object) If we have explosion, it's the setup for it
+---@field attack_ranged_frames_between number @(custom type) The minimum number of frames we wait between ranged attacks
+---@field food_material number @(custom type) The cell material we eat if encountering said material and 'needs_food' is 1 [default: 0, range: [0, 1]]
+---@field food_particle_effect_material number @(custom type) We create particles made of this material when eating if 'food_eating_create_particles' is 1 [default: 0, range: [0, 1]]
+---@field mAggression number @(custom type) the greater this value the more likely we're to attack creatures from other herds
+---@class ArcComponent : Component
+---@field lifetime number @remaining number of frames the arc exists [default: 60, range: [0, 1]]
+---@field mArcTarget number @(private) if 'mArcTarget' points to an existing entity a lighting arc will be created between this entity and 'mArcTarget' [default: 0, range: [0, 1]]
+---@field type integer @(custom type) which implementation the arc should use
+---@field material number @(custom type) string name for the material the arc is made of [default: 0, range: [0, 1]]
+---@class AreaDamageComponent : Component
+---@field circle_radius number @if > 0, will only damage entities inside the aabb rectangle which are closer than 'circle_radius' to the aabb center. [default: 0, range: [0, 1]]
+---@field damage_per_frame number @[default: 10, range: [0, 256]]
+---@field update_every_n_frame number @[default: 1, range: [0, 60]]
+---@field entity_responsible number @if NULL, will try to figure out who to blame [default: 0, range: [0, 1]]
+---@field death_cause string @[default: $damage_curse, range: [0, 60]]
+---@field entities_with_tag string @damage entities with this tag [default: mortal, range: [0, 1]]
+---@field aabb_min table @(custom type)
+---@field aabb_max table @(custom type)
+---@field damage_type integer @(custom type) the damage type
+---@class AttachToEntityComponent : Component
+---@field only_position boolean @if 1, we only inherit position. it is calculated as follows: target_position + target_offset * target_scale [default: 0, range: [0, 1]]
+---@field target_hotspot_tag string @if set, we apply the offset of target HotSpot with this tag
+---@field target_sprite_id number @if >= 0, the Nth sprite transform in target entity is inherited [default: -1, range: [0, 1]]
+---@field rotate_based_on_x_scale boolean @if 1, the rotation is set to 0 deg if scale >= 0 else to 180 deg [default: 0, range: [0, 1]]
+---@field destroy_component_when_target_is_gone boolean @should probably be on by default [default: 1, range: [0, 1]]
+---@field target number @(private) EntityID of the entity we're attached to. This will fail after save/load, unfortunately [default: 0, range: [0, 1]]
+---@field mUpdateFrame number @(private) [default: -1, range: [0, 1]]
+---@field Transform table @(custom type)
+---@class AudioComponent : Component
+---@field file string
+---@field event_root string
+---@field audio_physics_material string
+---@field set_latest_event_position boolean @[default: 0, range: [0, 1]]
+---@field remove_latest_event_on_destroyed boolean @[default: 0, range: [0, 1]]
+---@field send_message_on_event_dead boolean @[default: 0, range: [0, 1]]
+---@field play_only_if_visible boolean @plays sounds only if entity position is on screen and not covered by fog of war [default: 0, range: [0, 1]]
+---@field m_audio_physics_material number @(private) [default: 0, range: [0, 1]]
+---@field m_latest_source table @(private) [default: -1, range: [0, 1]]
+---@class AudioListenerComponent : Component
+---@field z number @[default: 0, range: [-500, 500]]
+---@class AudioLoopComponent : Component
+---@field file string
+---@field event_name string
+---@field auto_play boolean @[default: 0, range: [0, 1]]
+---@field auto_play_if_enabled boolean @[default: 0, range: [0, 1]]
+---@field play_on_component_enable boolean @[default: 0, range: [0, 1]]
+---@field calculate_material_lowpass boolean @[default: 1, range: [0, 1]]
+---@field set_speed_parameter boolean @[default: 0, range: [0, 1]]
+---@field set_speed_parameter_only_based_on_x_movement boolean @[default: 0, range: [0, 1]]
+---@field set_speed_parameter_only_based_on_y_movement boolean @[default: 0, range: [0, 1]]
+---@field volume_autofade_speed number @[default: 0, range: [0, 1]]
+---@field m_volume number @(private) [default: 0, range: [0, 1]]
+---@field m_intensity number @(private) [default: 1, range: [0, 1]]
+---@field m_intensity2 number @(private) [default: 1, range: [0, 1]]
+---@field m_source table @(private) [default: -1, range: [0, 1]]
+---@field m_frame_created number @(private) [default: -1, range: [0, 1]]
+---@class BiomeTrackerComponent : Component
+---@field limit_to_every_n_frame number @if > 1, we will only check the biome every n frames [default: 0, range: [0, 1]]
+---@field unsafe_current_biome userdata @(private) DO NOT ACCESS, since this can be in valid
+---@field current_biome_name string @(private) used to track in which biome we are at
+---@class BlackHoleComponent : Component
+---@field radius number @[default: 16, range: [0, 128]]
+---@field particle_attractor_force number @[default: 2, range: [0, 32]]
+---@field damage_probability number @[default: 0.25, range: [0, 1]]
+---@field damage_amount number @[default: 0.1, range: [0, 10]]
+---@field m_particle_attractor_id number @(private) [default: -1, range: [0, 1]]
+---@class BookComponent : Component
+---@field TEMP_TEMPY number @[default: 0, range: [0, 3.5]]
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@class BossDragonComponent : Component
+---@field speed number @[default: 1, range: [0, 10000]]
+---@field speed_hunt number @[default: 3, range: [0, 10000]]
+---@field acceleration number @[default: 3, range: [0, 10000]]
+---@field direction_adjust_speed number @[default: 1, range: [0, 10000]]
+---@field direction_adjust_speed_hunt number @[default: 1, range: [0, 10000]]
+---@field gravity number @[default: 3, range: [0, 10000]]
+---@field tail_gravity number @[default: 30, range: [0, 10000]]
+---@field part_distance number @[default: 10, range: [0, 10000]]
+---@field ground_check_offset number @[default: 0, range: [0, 10000]]
+---@field eat_ground_radius number @[default: 1, range: [0, 1e+006]]
+---@field eat_ground boolean @does the worm destroy the ground it moves through or not? [default: 1, range: [0, 1]]
+---@field hitbox_radius number @[default: 1, range: [0, 1e+006]]
+---@field bite_damage number @how much damage does this do when it hits an entity [default: 2, range: [0, 10]]
+---@field target_kill_radius number @[default: 1, range: [0, 1e+006]]
+---@field target_kill_ragdoll_force number @[default: 1, range: [0, 1e+006]]
+---@field hunt_box_radius number @[default: 512, range: [0, 10000]]
+---@field random_target_box_radius number @[default: 512, range: [0, 10000]]
+---@field new_hunt_target_check_every number @[default: 30, range: [0, 10000]]
+---@field new_random_target_check_every number @[default: 120, range: [0, 10000]]
+---@field jump_cam_shake number @[default: 20, range: [0, 10000]]
+---@field jump_cam_shake_distance number @[default: 256, range: [0, 10000]]
+---@field eat_anim_wait_mult number @[default: 0.05, range: [0, 10000]]
+---@field projectile_1 string @[default: data/entities/projectiles/bossdragon.xml, range: [0, 1]]
+---@field projectile_1_count number @[default: 2, range: [0, 10]]
+---@field projectile_2 string @[default: data/entities/projectiles/bossdragon_ray.xml, range: [0, 1]]
+---@field projectile_2_count number @[default: 5, range: [0, 10]]
+---@field ragdoll_filename string
+---@field mTargetEntityId number @(private) [default: 0, range: [0, 1]]
+---@field mTargetVec table @(private)
+---@field mGravVelocity number @(private) [default: 0, range: [0, 1]]
+---@field mSpeed number @(private) [default: 0, range: [0, 1]]
+---@field mRandomTarget table @(private)
+---@field mLastLivingTargetPos table @(private)
+---@field mNextTargetCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field mNextHuntTargetCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field mOnGroundPrev boolean @(private) [default: 0, range: [0, 1]]
+---@field mMaterialIdPrev number @(private) [default: 0, range: [0, 1]]
+---@field mPhase number @(private) [default: 0, range: [0, 1]]
+---@field mNextPhaseSwitchTime number @(private) [default: 0, range: [0, 1]]
+---@field mPartDistance number @(private) [default: 2, range: [0, 1]]
+---@field mIsInitialized boolean @(private) [default: 0, range: [0, 1]]
+---@class BossHealthBarComponent : Component
+---@field gui boolean @[default: 1, range: [0, 1]]
+---@field gui_special_final_boss boolean @[default: 0, range: [0, 1]]
+---@field in_world boolean @[default: 0, range: [0, 1]]
+---@field gui_max_distance_visible number @[default: 600, range: [0, 1]]
+---@field mOldSpritesDestroyed boolean @(private) [default: 0, range: [0, 1]]
+---@class CameraBoundComponent : Component
+---@field enabled boolean @If enabled, kills this component if it's outside the camera distance [default: 1, range: [0, 1]]
+---@field distance number @Distance in pixels from the center of camera, if outside this distance the entity is destroyed [default: 250, range: [0, 1024]]
+---@field distance_border number @Offset towards camera in pixels from 'distance' where the entity is respawned if it was frozen [default: 20, range: [0, 1024]]
+---@field max_count number @If more than 'max_count' entities of this type exist the one furthest from camera is destroyed [default: 10, range: [0, 1024]]
+---@field freeze_on_distance_kill boolean @If true and the entity went too far - this entity will be stored so we can later respawn it where it was destroyed because it got too far from the camera? [default: 1, range: [0, 1]]
+---@field freeze_on_max_count_kill boolean @If true and the entity was one too many of its kind - this entity will be stored so we can later respawn it where it was destroyed because it got too far from the camera? [default: 1, range: [0, 1]]
+---@class CardinalMovementComponent : Component
+---@field horizontal_movement boolean @allow horizontal movement [default: 1, range: [0, 1]]
+---@field vertical_movement boolean @allow vertical movement [default: 1, range: [0, 1]]
+---@field intercardinal_movement boolean @allow intercardinal movement [default: 0, range: [0, 1]]
+---@field mPrevPos table @(private)
+---@class CellEaterComponent : Component
+---@field radius number @[default: 10, range: [0, 100]]
+---@field eat_probability number @[default: 100, range: [0, 100]]
+---@field only_stain boolean @[default: 0, range: [0, 1]]
+---@field eat_dynamic_physics_bodies boolean @[default: 1, range: [0, 1]]
+---@field limited_materials boolean @if true, will only eat the materials defined in material_list [default: 0, range: [0, 1]]
+---@field ignored_material_tag string @if set, will not eat any materials with this tag. please note that this lowers the performance of cell eating by some amount.
+---@field ignored_material number @(custom type) String name of a material that shouldn't be eaten by the component [default: 0, range: [0, 1]]
+---@field materials table @(custom type) is a list of accepted materials sorted
+---@class CharacterCollisionComponent : Component
+---@field getting_crushed_threshold number @[default: 5, range: [0, 100]]
+---@field moving_up_before_getting_crushed_threshold number @[default: 3, range: [0, 100]]
+---@field getting_crushed_counter number @(private) 1.12.2018 - Is this still used? [default: 0, range: [0, 1]]
+---@field stuck_in_ground_counter number @(private) used this mostly for player to figure out if it's stuck in ground [default: 0, range: [0, 1]]
+---@field mCollidedHorizontally boolean @(private) [default: 0, range: [0, 1]]
+---@class CharacterDataComponent : Component
+---@field platforming_type number @0 = oldest, 1 = newer, 2 = safest [default: 0, range: [0, 3]]
+---@field mass number @1.0 = approx. mass of player [default: 1, range: [0, 10]]
+---@field buoyancy_check_offset_y number @[default: -6, range: [-1000, 1000]]
+---@field liquid_velocity_coeff number @how much do liquids move this character. e.g. when standing in a flowing river [default: 9, range: [0, 20]]
+---@field gravity number @[default: 100, range: [0, 250]]
+---@field fly_recharge_spd number @[default: 0, range: [0, 250]]
+---@field fly_recharge_spd_ground number @[default: 0, range: [0, 250]]
+---@field flying_needs_recharge boolean @const variable... player has this as true [default: 0, range: [0, 1]]
+---@field flying_in_air_wait_frames number @to fix the tap tap tap flying cheese, we wait this many frames before recharging in air [default: 44, range: [0, 200]]
+---@field flying_recharge_removal_frames number @another fix to the tap tap - this is how many frames from pressing down up we'll remove fly charge [default: 8, range: [0, 20]]
+---@field climb_over_y number @[default: 3, range: [0, 10]]
+---@field check_collision_max_size_x number @[default: 5, range: [0, 50]]
+---@field check_collision_max_size_y number @[default: 5, range: [0, 50]]
+---@field is_on_ground boolean @[default: 0, range: [0, 1]]
+---@field is_on_slippery_ground boolean @[default: 0, range: [0, 1]]
+---@field ground_stickyness number @[default: 0, range: [0, 1]]
+---@field effect_hit_ground boolean @[default: 0, range: [0, 1]]
+---@field eff_hg_damage_min number @if we want to damage ground when hitting it... this is the place [default: 0, range: [0, 1]]
+---@field eff_hg_damage_max number @if we want to damage ground when hitting it... this is the place [default: 0, range: [0, 1]]
+---@field eff_hg_position_x number @[default: 0, range: [-15, 15]]
+---@field eff_hg_position_y number @[default: 0, range: [-15, 15]]
+---@field eff_hg_size_x number @[default: 0, range: [-15, 15]]
+---@field eff_hg_size_y number @[default: 0, range: [-15, 15]]
+---@field eff_hg_velocity_min_x number @[default: 0, range: [-65, 65]]
+---@field eff_hg_velocity_max_x number @[default: 0, range: [-65, 65]]
+---@field eff_hg_velocity_min_y number @[default: 0, range: [-65, 65]]
+---@field eff_hg_velocity_max_y number @[default: 0, range: [-65, 65]]
+---@field eff_hg_offset_y number @[default: 0, range: [-15, 15]]
+---@field eff_hg_update_box2d boolean @if true, will move physics bodies that it hits [default: 0, range: [0, 1]]
+---@field eff_hg_b2force_multiplier number @multiplies the velocity with this... [default: 0.0035, range: [0, 1]]
+---@field destroy_ground number @how much damage do we do the ground when land on it [default: 0, range: [0, 1]]
+---@field send_transform_update_message boolean @if 1, will send Message_TransformUpdated to updated entities and their children when the component is processed by PlayerCollisionSystem or CharacterCollisionSystem [default: 0, range: [0, 1]]
+---@field dont_update_velocity_and_xform boolean @might be useful if you want to use CharacterCollisionSystem to only update on_ground status [default: 0, range: [0, 1]]
+---@field mFlyingTimeLeft number @How much flying energy do we have left? - NOTE( Petri ): 1.3.2023 - This used to be a private variable. It was changed to fix the save/load infinite flying bug. [default: 1000, range: [0, 1]]
+---@field mFramesOnGround number @(private) [default: 0, range: [0, 1]]
+---@field mLastFrameOnGround number @(private) [default: 0, range: [0, 1]]
+---@field mVelocity table @(private)
+---@field mCollidedHorizontally boolean @(private) moved this here from CharacterCollisionComponent - since that is multithreaded and we needed a non multithreaded version [default: 0, range: [0, 1]]
+---@field collision_aabb_min_x number @(custom type)
+---@field collision_aabb_max_x number @(custom type)
+---@field collision_aabb_min_y number @(custom type)
+---@field collision_aabb_max_y number @(custom type)
+---@field fly_time_max number @(custom type) how much flying energy + 
+---@class CharacterPlatformingComponent : Component
+---@field jump_velocity_x number @[default: 0, range: [0, 500]]
+---@field jump_velocity_y number @[default: -175, range: [-500, 0]]
+---@field jump_keydown_buffer number @[default: 2, range: [0, 10]]
+---@field fly_speed_mult number @AI stuff [default: 0, range: [-100, 100]]
+---@field fly_speed_change_spd number @player [default: 5, range: [0, 1000]]
+---@field fly_model_player boolean @if true, uses player fly model [default: 0, range: [0, 1]]
+---@field fly_smooth_y boolean @if true, smooths out the AI fly model [default: 1, range: [0, 1]]
+---@field accel_x number @[default: 1, range: [0, 1000]]
+---@field accel_x_air number @[default: 0.1, range: [0, 1000]]
+---@field pixel_gravity number @[default: 600, range: [0, 1000]]
+---@field swim_idle_buoyancy_coeff number @[default: 1.2, range: [0, 2]]
+---@field swim_down_buoyancy_coeff number @[default: 0.7, range: [0, 2]]
+---@field swim_up_buoyancy_coeff number @[default: 0.9, range: [0, 2]]
+---@field swim_drag number @when in water velocity *= swim_drag [default: 0.95, range: [0, 2]]
+---@field swim_extra_horizontal_drag number @when in water velocity.x *= swim_extra_horizontal_drag [default: 0.9, range: [0, 2]]
+---@field mouse_look boolean @[default: 1, range: [0, 1]]
+---@field mouse_look_buffer number @[default: 1, range: [0, 5]]
+---@field keyboard_look boolean @if true, turns based on if left or right has been pressed down [default: 0, range: [0, 1]]
+---@field turning_buffer number @[default: 0.1, range: [0, 2]]
+---@field animation_to_play string
+---@field animation_to_play_next string
+---@field run_animation_velocity_switching_threshold number @[default: 45, range: [0, 1000]]
+---@field run_animation_velocity_switching_enabled boolean @[default: 0, range: [0, 1]]
+---@field turn_animation_frames_between number @[default: 20, range: [0, 100]]
+---@field precision_jumping_max_duration_frames number @maximum duration of precision jump or knockback. -1 = infinite [default: -1, range: [0, 1]]
+---@field audio_liquid_splash_intensity number @[default: 1, range: [0, 1]]
+---@field mExAnimationPos table @(private)
+---@field mFramesInAirCounter number @(private) [default: -1, range: [0, 1]]
+---@field mIsPrecisionJumping boolean @(private) [default: 0, range: [0, 1]]
+---@field mPrecisionJumpingTime number @(private) [default: 0, range: [0, 1]]
+---@field mPrecisionJumpingSpeedX number @(private) [default: 0, range: [0, 1]]
+---@field mPrecisionJumpingTimeLeft number @(private) [default: 0, range: [0, 1]]
+---@field mFlyThrottle number @(private) [default: 0, range: [0, 1]]
+---@field mSmoothedFlyingTargetY number @(private) [default: 0, range: [0, 1]]
+---@field mJetpackEmitting number @(private) -1 = undefined, 0 = not emitting, 1 = emitting [default: -1, range: [0, 1]]
+---@field mNextTurnAnimationFrame number @(private) [default: 0, range: [0, 1]]
+---@field mFramesNotSwimming number @(private) 0 = currently swimming [default: 10, range: [0, 1]]
+---@field mFramesSwimming number @(private) 0 = not currently swimming [default: 0, range: [0, 1]]
+---@field mShouldCrouch boolean @(private) [default: 0, range: [0, 1]]
+---@field mShouldCrouchPrev boolean @(private) [default: 0, range: [0, 1]]
+---@field mLastPostureSwitchFrame number @(private) [default: -1, range: [0, 1]]
+---@field mLookOverrideLastFrame number @(private) [default: 0, range: [0, 1]]
+---@field mLookOverrideDirection number @(private) [default: 0, range: [0, 1]]
+---@field velocity_min_x number @(custom type)
+---@field velocity_max_x number @(custom type)
+---@field velocity_min_y number @(custom type)
+---@field velocity_max_y number @(custom type)
+---@field run_velocity number @(custom type)
+---@field fly_velocity_x number @(custom type)
+---@field fly_speed_max_up number @(custom type)
+---@field fly_speed_max_down number @(custom type)
+---@class CollisionTriggerComponent : Component
+---@field width number @[default: 32, range: [0, 100]]
+---@field height number @[default: 32, range: [0, 100]]
+---@field radius number @[default: 32, range: [0, 100]]
+---@field required_tag string @[default: mortal, range: [0, 1]]
+---@field remove_component_when_triggered boolean @[default: 0, range: [0, 1]]
+---@field destroy_this_entity_when_triggered boolean @[default: 1, range: [0, 1]]
+---@field timer_for_destruction number @[default: 0, range: [0, 60]]
+---@field self_trigger boolean @if true, the shooter can trigger it [default: 0, range: [0, 1]]
+---@field skip_self_frames number @skips checks against self during these frames [default: 60, range: [0, 1]]
+---@field mTimer number @(private) [default: 0, range: [0, 1]]
+---@class ConsumableTeleportComponent : Component
+---@field create_other_end boolean @[default: 0, range: [0, 1]]
+---@field is_at_home boolean @[default: 0, range: [0, 1]]
+---@field collision_radius number @[default: 10, range: [0, 20]]
+---@field target_id number @[default: 0, range: [0, 1]]
+---@field id number @[default: 0, range: [0, 1]]
+---@field mNextUsableFrame number @[default: 0, range: [0, 1]]
+---@field mHasOtherEnd boolean @[default: 0, range: [0, 1]]
+---@field target_location table @(custom type)
+---@class ControllerGoombaAIComponent : Component
+---@field auto_turn_around_enabled boolean @disable this if you don't want creature to 'look around', while standing still [default: 1, range: [0, 1]]
+---@field wait_to_turn_around number @[default: 50, range: [0, 300]]
+---@field wall_hit_wait number @[default: 10, range: [0, 300]]
+---@field check_wall_detection boolean @[default: 1, range: [0, 1]]
+---@field wall_detection_aabb_min_x number @[default: 0, range: [-15, 15]]
+---@field wall_detection_aabb_max_x number @[default: 0, range: [-15, 15]]
+---@field wall_detection_aabb_min_y number @[default: 0, range: [-15, 15]]
+---@field wall_detection_aabb_max_y number @[default: 0, range: [-15, 15]]
+---@field check_floor_detection boolean @[default: 0, range: [0, 1]]
+---@field floor_detection_aabb_min_x number @[default: 0, range: [-15, 15]]
+---@field floor_detection_aabb_max_x number @[default: 0, range: [-15, 15]]
+---@field floor_detection_aabb_min_y number @[default: 0, range: [-15, 15]]
+---@field floor_detection_aabb_max_y number @[default: 0, range: [-15, 15]]
+---@field mChangingDirectionCounter number @(private) [default: -1, range: [0, 1]]
+---@class ControlsComponent : Component
+---@field polymorph_hax boolean @[default: 0, range: [0, 1]]
+---@field polymorph_next_attack_frame number @[default: 0, range: [0, 1]]
+---@field enabled boolean @[default: 1, range: [0, 1]]
+---@field gamepad_indirect_aiming_enabled boolean @[default: 0, range: [0, 1]]
+---@field gamepad_fire_on_thumbstick_extend boolean @[default: 0, range: [0, 1]]
+---@field gamepad_fire_on_thumbstick_extend_threshold number @[default: 0.7, range: [0, 1]]
+---@field mButtonDownFire boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameFire number @(private) [default: 0, range: [0, 1]]
+---@field mButtonLastFrameFire number @(private) [default: -2, range: [0, 1]]
+---@field mButtonDownFire2 boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameFire2 number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownAction boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameAction number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownThrow boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameThrow number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownInteract boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameInteract number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownLeft boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameLeft number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownRight boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameRight number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownUp boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameUp number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownDown boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameDown number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownJump boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameJump number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownRun boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameRun number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownFly boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameFly number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownDig boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameDig number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownChangeItemR boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameChangeItemR number @(private) [default: 0, range: [0, 1]]
+---@field mButtonCountChangeItemR number @(private) note these have special count property [default: 0, range: [0, 1]]
+---@field mButtonDownChangeItemL boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameChangeItemL number @(private) [default: 0, range: [0, 1]]
+---@field mButtonCountChangeItemL number @(private) note these have special count property [default: 0, range: [0, 1]]
+---@field mButtonDownInventory boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameInventory number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownHolsterItem boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameHolsterItem number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownDropItem boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameDropItem number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownKick boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameKick number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownEat boolean @(private) [default: 0, range: [0, 1]]
+---@field mButtonFrameEat number @(private) [default: 0, range: [0, 1]]
+---@field mButtonDownLeftClick boolean @(private) NOTE! Ignores gamepad, if mouse is pressed this will be true. [default: 0, range: [0, 1]]
+---@field mButtonFrameLeftClick number @(private) NOTE! Ignores gamepad, if mouse is pressed this will be true. [default: 0, range: [0, 1]]
+---@field mButtonDownRightClick boolean @(private) NOTE! Ignores gamepad, if mouse is pressed this will be true. [default: 0, range: [0, 1]]
+---@field mButtonFrameRightClick number @(private) NOTE! Ignores gamepad, if mouse is pressed this will be true. [default: 0, range: [0, 1]]
+---@field mButtonDownTransformLeft boolean @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonFrameTransformLeft number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonDownTransformRight boolean @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonFrameTransformRight number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonDownTransformUp boolean @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonFrameTransformUp number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonCountTransformUp number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonDownTransformDown boolean @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonFrameTransformDown number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mButtonCountTransformDown number @(private) NOT IN USE! [default: 0, range: [0, 1]]
+---@field mFlyingTargetY number @(private) [default: 0, range: [0, 1]]
+---@field mAimingVector table @(private)
+---@field mAimingVectorNormalized table @(private) Aiming vector normalized to unit sphere.
+---@field mAimingVectorNonZeroLatest table @(private)
+---@field mGamepadAimingVectorRaw table @(private)
+---@field mJumpVelocity table @(private) used mostly by AI only?
+---@field mMousePosition table @(private)
+---@field mMousePositionRaw table @(private)
+---@field mMousePositionRawPrev table @(private)
+---@field mMouseDelta table @(private)
+---@field mGamepadIndirectAiming table @(private)
+---@field mGamePadCursorInWorld table @(private) where the aiming cursor is in the world, updated by platformshooterplayer_system 
+---@field mButtonDownDelayLineFire table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineFire2 table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineRight table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineLeft table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineUp table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineDown table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineKick table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineThrow table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineJump table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field mButtonDownDelayLineFly table @(private) Used to delay input for some game effects [default: 0, range: [0, 1]]
+---@field input_latency_frames number @(private) Adds latency to some inputs. Used by some game effects. Max 31.
+---@class CrawlerAnimalComponent : Component
+---@field ray_length number @[default: 5, range: [0, 100]]
+---@field ray_count number @[default: 16, range: [0, 64]]
+---@field gravity number @[default: 600, range: [0, 10000]]
+---@field terminal_velocity number @[default: 600, range: [0, 10000]]
+---@field speed number @[default: 0.2, range: [0, 10000]]
+---@field give_up_area_radius number @[default: 20, range: [0, 1000]]
+---@field give_up_time number @[default: 45, range: [0, 1000]]
+---@field attack_from_ceiling_check_ray_length number @[default: 128, range: [0, 1000]]
+---@field attack_from_ceiling_check_every_n_frames number @[default: 15, range: [0, 1000]]
+---@field collision_damage number @[default: 0.25, range: [0, 1000]]
+---@field collision_damage_radius number @[default: 10, range: [0, 1000]]
+---@field collision_damage_frames_between number @[default: 10, range: [0, 1000]]
+---@field animate boolean @[default: 1, range: [0, 1]]
+---@field mDir boolean @(private) [default: 1, range: [0, 1]]
+---@field mFrameNextGiveUp number @(private) [default: 0, range: [0, 1]]
+---@field mFrameNextDamage number @(private) [default: 0, range: [0, 1]]
+---@field mFrameNextAttackFromCeilingCheck number @(private) [default: 0, range: [0, 1]]
+---@field mMin table @(private)
+---@field mMax table @(private)
+---@field mPrevNonSnappedPosition table @(private)
+---@field mPrevCellPosition table @(private)
+---@field mPrevCellPosition2 table @(private)
+---@field mPrevCellPosition3 table @(private)
+---@field mPrevCellPosition4 table @(private)
+---@field mPrevCellPosition5 table @(private)
+---@field mPrevCellPosition6 table @(private)
+---@field mPrevCellPosition7 table @(private)
+---@field mPrevCellPosition8 table @(private)
+---@field mLatestPosition table @(private)
+---@field mPrevFalling boolean @(private) [default: 0, range: [0, 1]]
+---@field mIsInitialized boolean @(private) [default: 0, range: [0, 1]]
+---@field mVelocityY number @(private) [default: 0, range: [0, 1]]
+---@field mAngle number @(private) [default: 0, range: [0, 1]]
+---@field mMovementStepAccumulator number @(private) [default: 0, range: [0, 1]]
+---@class CutThroughWorldDoneHereComponent : Component
+---@field id_of_done_cut number @[default: 0, range: [0, 1]]
+---@class DamageModelComponent : Component
+---@field hp number @hit points at the moment [default: 1, range: [0, 4]]
+---@field max_hp number @the maximum hp that this can have, we'll set this when loading [default: 0, range: [0, 4]]
+---@field max_hp_cap number @the maximum 'max_hp' that this can have, <= 0 means no limits. Used by perks such as GLASS_CANNON [default: 0, range: [0, 12]]
+---@field max_hp_old number @used for UI rendering [default: 0, range: [0, 1]]
+---@field critical_damage_resistance number @0.0 = all critical damage multiplier is applied. 1.0 = no critical damage multiplier is applied [default: 0, range: [0, 1]]
+---@field invincibility_frames number @if positive, doesn't take damage [default: 0, range: [0, 1024]]
+---@field falling_damages boolean @do we take fall damage [default: 1, range: [0, 1]]
+---@field falling_damage_height_min number @how far do we need to fall to take damage, we start with this height, the peasant takes min damage from this [default: 70, range: [0, 1]]
+---@field falling_damage_height_max number @after this the peasant always takes the maximum fall damage [default: 250, range: [0, 1]]
+---@field falling_damage_damage_min number @when we fall over height_min we take this much, lineary ramping to damage_max [default: 0.1, range: [0, 1]]
+---@field falling_damage_damage_max number @when we fall over height_min we take this much, lineary ramping to damage_max [default: 1.2, range: [0, 1]]
+---@field air_needed boolean @Do we breath, can we take damage from not breathing? [default: 1, range: [0, 1]]
+---@field air_in_lungs number @How much air do we have in our lungs? - after the air runs out we take damage [default: 5, range: [0, 1]]
+---@field air_in_lungs_max number @how much air can we have in our lungs, it's filled to this point if we're not in water [default: 5, range: [0, 1]]
+---@field air_lack_of_damage number @(* dt)... damage in a second if we're in the water [default: 0.2, range: [0, 1]]
+---@field minimum_knockback_force number @Minimum knockback force required to do the knockback [default: 0, range: [0, 1]]
+---@field materials_damage boolean @should materials do damage or not? [default: 1, range: [0, 1]]
+---@field material_damage_min_cell_count number @if material damage is received from less than 'material_damage_min_cell_count' this frame, it is ignored [default: 4, range: [0, 1]]
+---@field materials_that_damage string @list of materials that do damage, separated by ',' e.g. 'acid, fire, smoke' [default: acid, range: [0, 1]]
+---@field materials_how_much_damage string @list of damage amount per material in materials_that_damage, separated by ',' [default: 0.1, range: [0, 1]]
+---@field materials_damage_proportional_to_maxhp boolean @if damage from materials is proportional to max hp, instead of just damage [default: 0, range: [0, 1]]
+---@field physics_objects_damage boolean @if true, will take damage from physics objects that hit it [default: 0, range: [0, 1]]
+---@field materials_create_messages boolean @should collisions with certain materials create messages or not? [default: 0, range: [0, 1]]
+---@field materials_that_create_messages string @list of materials that generate CollisionWithCell messages, separated by ',' e.g. 'acid, fire, smoke' [default: meat, range: [0, 1]]
+---@field ragdoll_filenames_file string @the file from which to load a ragdoll on death' [default: data/temp/ragdoll/filenames.txt, range: [0, 1]]
+---@field ragdoll_material string @what material is the ragdoll made out of [default: meat, range: [0, 1]]
+---@field ragdoll_offset_x number @where should the ragdoll be created relative to our entity position' [default: 0, range: [0, 1]]
+---@field ragdoll_offset_y number @where should the ragdoll be created relative to our entity position' [default: 0, range: [0, 1]]
+---@field blood_material string @this is the material that gets thrown as particles when this entity takes damage [default: blood_fading, range: [0, 1]]
+---@field blood_spray_material string @this is the material that gets thrown as particles when this entity sprays blood on death
+---@field blood_spray_create_some_cosmetic boolean @if true, we force some blood spray particles to be cosmetic (can be enabled to avoid making a huge mess of blood spray) [default: 0, range: [0, 1]]
+---@field blood_multiplier number @how much blood, this is the multiplier used for sprouting lots or little blood [default: 1, range: [0, 10]]
+---@field ragdoll_blood_amount_absolute number @if > -1, this is the absolute amount of blood we share between particle emitters in the ragdoll [default: -1, range: [-1, 1000]]
+---@field blood_sprite_directional string @this sprite is loaded at damage position if we take damage that creates a blood effect
+---@field blood_sprite_large string @this sprite is loaded at damage position if we take explosion/heavy damage
+---@field healing_particle_effect_entity string @if this is set, will load this entity as a child of this entity, when this entity is healed
+---@field create_ragdoll boolean @if 0, we skip ragdoll creation on death [default: 1, range: [0, 1]]
+---@field ragdollify_child_entity_sprites boolean @if 1, we ragdollify child entity sprites [default: 0, range: [0, 1]]
+---@field ragdollify_root_angular_damping number @If ragdoll_filenames_file= and > 0, the angular damping of the first ragdoll body is set to this value. [default: 0, range: [0, 1]]
+---@field ragdollify_disintegrate_nonroot boolean @If ragdoll_filenames_file= and true, all but the first sprite on the root entity will be disintegrated instead of being turned into physics bodies. [default: 0, range: [0, 1]]
+---@field wait_for_kill_flag_on_death boolean @if 1, we wont kill the entity along with kill fx and ragdoll until 'kill' is 1 [default: 0, range: [0, 1]]
+---@field kill_now boolean @if 1, we wont kill the entity along with kill fx and ragdoll until 'kill_now' is 1 [default: 0, range: [0, 1]]
+---@field drop_items_on_death boolean @drop the abilities as items on death? [default: 1, range: [0, 1]]
+---@field ui_report_damage boolean @If 1, damage numbers are displayed when this entity is damaged [default: 1, range: [0, 1]]
+---@field ui_force_report_damage boolean @If 1, damage numbers are displayed when this entity is damaged, even if the numbers are disabled in settings [default: 0, range: [0, 1]]
+---@field in_liquid_shooting_electrify_prob number @when shooting underwater how likely are we to electrify the water [default: 0, range: [0, 100]]
+---@field wet_status_effect_damage number @how much damage per 10 frames is done if entity has 'wet' status effect [default: 0, range: [0, 0.1]]
+---@field is_on_fire boolean @Tells us we're on fire or not [default: 0, range: [0, 1]]
+---@field fire_probability_of_ignition number @what is the probability that we'll ignite, 0 means won't ever ignite [default: 0.5, range: [0, 1]]
+---@field fire_how_much_fire_generates number @how many fire particles do we generate each frame [default: 4, range: [0, 10]]
+---@field fire_damage_ignited_amount number @how much damage does being ignited do? [default: 0.0003, range: [0, 2]]
+---@field fire_damage_amount number @how much damage does fire do?, 0.2 is pretty good [default: 0.2, range: [0, 2]]
+---@field mLastElectricityResistanceFrame number @Last frame electricity has no effect. Should not be private! [default: -2147483648, range: [0, 1]]
+---@field mLastFrameReportedBlock number @Last frame a damage block message was displayed for this entity [default: -2147483648, range: [0, 1]]
+---@field mLastMaxHpChangeFrame number @used for UI rendering [default: -10000, range: [0, 1]]
+---@field mIsOnFire boolean @(private) private variable to check when we're on fire and not [default: 0, range: [0, 1]]
+---@field mFireProbability number @(private) this gets decreased if we can't ignite anything else [default: 100, range: [0, 1]]
+---@field mFireFramesLeft number @(private) this is the remaining frames we're on fire [default: 0, range: [0, 1]]
+---@field mFireDurationFrames number @(private) this is the total duration in frames we're on fire [default: 0, range: [0, 1]]
+---@field mFireTriedIgniting boolean @(private) private variable to check when we could have been ignited or not [default: 0, range: [0, 1]]
+---@field mLastCheckX number @(private) an optimization, so we don't have to check everything every frame [default: 0, range: [0, 1]]
+---@field mLastCheckY number @(private) an optimization, so we don't have to check everything every frame [default: 0, range: [0, 1]]
+---@field mLastCheckTime number @(private) an optimization, so we don't have to check everything every frame [default: 0, range: [0, 1]]
+---@field mLastMaterialDamageFrame number @(private) this is the last frame we took material damage [default: 0, range: [0, 1]]
+---@field mFallIsOnGround boolean @(private) for fall damage, keeps a private variable about if we're on ground or not [default: 0, range: [0, 1]]
+---@field mFallHighestY number @(private) private var to keep track of how high have we flown to [default: 3.40282e+038, range: [0, 1]]
+---@field mFallCount number @(private) how many times have we fallen? This is used to make sure we don't take damage from the first fall [default: 0, range: [0, 1]]
+---@field mAirAreWeInWater boolean @(private) a private variable to track our state in drowning [default: 0, range: [0, 1]]
+---@field mAirFramesNotInWater number @(private) how many frames have been with air to breathe [default: 0, range: [0, 1]]
+---@field mAirDoWeHave boolean @(private) a private variable to track our state in drowning [default: 0, range: [0, 1]]
+---@field mTotalCells number @(private) how many cells are there total [default: 0, range: [0, 1]]
+---@field mLiquidCount number @(private) how many of the cells are liquid [default: 0, range: [0, 1]]
+---@field mLiquidMaterialWeAreIn number @(private) stores the liquid material we're in... may not be the most accurate [default: -1, range: [0, 1]]
+---@field int table @(private) NOTE! Sorted! a list of materials that do damage (materials_that_damage) [default: >      mDamageMaterials                                                -]
+---@field float table @(private) NOTE! Sorted! a list of materials that do damage (materials_that_damage) [default: >    mDamageMaterialsHowMuch                                         -]
+---@field int table @(private) NOTE! Sorted! a list of materials that create messages (materials_that_create_messages) [default: >      mCollisionMessageMaterials                                      -]
+---@field int table @(private) Number of cells per collided with this frame. Order matches mCollisionMessageMaterials [default: >      mCollisionMessageMaterialCountsThisFrame                        -]
+---@field float table @(private) A list of damage per material that damages us. In same order as materials [default: >    mMaterialDamageThisFrame                                        -]
+---@field mFallDamageThisFrame number @(private) Amount of fall damage received this frame [default: 0, range: [0, 1]]
+---@field mElectricityDamageThisFrame number @(private) Amount of electricity damage received this frame [default: 0, range: [0, 1]]
+---@field mPhysicsDamageThisFrame number @(private) max physics damage we have taken this round [default: 0, range: [0, 1]]
+---@field mPhysicsDamageVecThisFrame table @(private) direction of physics damage
+---@field mPhysicsDamageLastFrame number @(private) frame number when we took physics damage [default: 0, range: [0, 1]]
+---@field mPhysicsDamageEntity number @(private) the physics entity that hit us [default: 0, range: [0, 1]]
+---@field mPhysicsDamageTelekinesisCasterEntity number @(private) who moved an object that hit us via telekinesis [default: 0, range: [0, 1]]
+---@field mLastDamageFrame number @(private) frame number when we took any damage [default: -120, range: [0, 1]]
+---@field mHpBeforeLastDamage number @(private) how much hp did we have a while ago? [default: 0, range: [0, 1]]
+---@field mFireDamageBuffered number @(private) used to optimized cases where lots of entities are taking fire damage [default: 0, range: [0, 1]]
+---@field mFireDamageBufferedNextDeliveryFrame number @(private) [default: 0, range: [0, 1]]
+---@field damage_multipliers table @(object) the multipliers applied to different types of damage
+---@field ragdoll_fx_forced integer @(custom type) if set, will force this ragdoll fx to happen everytime
+---@class DamageNearbyEntitiesComponent : Component
+---@field radius number @[default: 10, range: [0, 1]]
+---@field damage_min number @[default: 0.1, range: [0, 1]]
+---@field damage_max number @[default: 0.2, range: [0, 1]]
+---@field target_vec_max_len number @[default: 5, range: [0, 1]]
+---@field knockback_multiplier number @[default: 1, range: [0, 1]]
+---@field time_between_damaging number @[default: 20, range: [0, 1]]
+---@field damage_description string @[default: bite, range: [0, 1]]
+---@field target_tag string @[default: mortal, range: [0, 1]]
+---@field mVelocity table @(private)
+---@field mNextDamageFrame number @(private) [default: 0, range: [0, 1]]
+---@field damage_type integer @(custom type) the damage type
+---@field ragdoll_fx integer @(custom type)
+---@class DebugLogMessagesComponent : Component
+---@field TEMP_TEMPY number @[default: 0, range: [0, 3.5]]
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@class DebugSpatialVisualizerComponent : Component
+---@field min_x number @[default: 0, range: [0, 1]]
+---@field min_y number @[default: 0, range: [0, 1]]
+---@field max_x number @[default: 0, range: [0, 1]]
+---@field max_y number @[default: 0, range: [0, 1]]
+---@field int table @[default: color                                                           4294967295, range: [0, 1]]
+---@class DieIfSpeedBelowComponent : Component
+---@field min_speed number @The entity that owns this component is killed if its speed (via VelocityComponent) falls below this value. [default: 1, range: [0, 1000]]
+---@field mMinSpeedSquared number @[default: 0, range: [0, 1]]
+---@class DroneLauncherComponent : Component
+---@field drone_entity_file string @[default: data/entities/misc/player_drone.xml, range: [0, 1]]
+---@class ElectricChargeComponent : Component
+---@field charge_time_frames number @[default: 120, range: [0, 240]]
+---@field fx_velocity_max number @[default: 120, range: [0, 240]]
+---@field electricity_emission_interval_frames number @[default: 5, range: [0, 10]]
+---@field fx_emission_interval_min number @[default: 2, range: [0, 20]]
+---@field fx_emission_interval_max number @[default: 15, range: [0, 30]]
+---@field charge number @[default: 0, range: [0, 1]]
+---@class ElectricityComponent : Component
+---@field energy number @[default: 1000, range: [0, 10000]]
+---@field probability_to_heat number @[default: 0, range: [0, 1]]
+---@field speed number @[default: 32, range: [0, 10000]]
+---@field splittings_min number @[default: 0, range: [0, 10000]]
+---@field splittings_max number @[default: 0, range: [0, 10000]]
+---@field splitting_energy_min number @[default: 0, range: [0, 10000]]
+---@field splitting_energy_max number @[default: 0, range: [0, 10000]]
+---@field hack_is_material_crack boolean @[default: 0, range: [0, 1]]
+---@field hack_crack_ice boolean @[default: 0, range: [0, 1]]
+---@field hack_is_set_fire boolean @if set will set the thing on fire where this is located at [default: 0, range: [0, 1]]
+---@field mSplittingsLeft number @(private) [default: 0, range: [0, 1]]
+---@field mSplittingEnergy number @(private) [default: 0, range: [0, 1]]
+---@field mAvgDir table @(private)
+---@field mPrevPos table @(private)
+---@field mPrevMaterial number @(private) [default: 0, range: [0, 1]]
+---@field mShouldPlaySound boolean @(private) [default: 1, range: [0, 1]]
+---@class ElectricityReceiverComponent : Component
+---@field offset_x number @[default: 0, range: [1, 3]]
+---@field offset_y number @[default: 0, range: [1, 3]]
+---@field radius number @[default: 1, range: [1, 3]]
+---@field active_time_frames number @[default: 1, range: [1, 15]]
+---@field switch_on_msg_interval_frames number @[default: 0, range: [0, 60]]
+---@field electrified_msg_interval_frames number @[default: -1, range: [0, 15]]
+---@field mLastFrameElectrified number @(private) [default: -1000, range: [0, 1]]
+---@field mNextElectrifiedMsgFrame number @(private) [default: 0, range: [0, 1]]
+---@field mNextSwitchOnMsgFrame number @(private) [default: 0, range: [0, 1]]
+---@class ElectricitySourceComponent : Component
+---@field radius number @[default: 5, range: [1, 16]]
+---@field emission_interval_frames number @[default: 15, range: [1, 10]]
+---@field mNextFrameEmitElectricity number @(private) [default: 0, range: [0, 1]]
+---@class EndingMcGuffinComponent : Component
+---@field TEMP_TEMPY number @[default: 0, range: [0, 3.5]]
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@class EnergyShieldComponent : Component
+---@field radius number @[default: 16, range: [0, 100]]
+---@field damage_multiplier number @[default: 1.5, range: [0, 10]]
+---@field max_energy number @[default: 1, range: [0, 10]]
+---@field energy_required_to_shield number @[default: 0.2, range: [0, 10]]
+---@field recharge_speed number @[default: 1, range: [0, 10]]
+---@field sector_degrees number @if less than 180 we only provide partial cover to the current direction of the entity [default: 360, range: [0, 360]]
+---@field energy number @[default: 0, range: [0, 3]]
+---@field mPrevPosition table @(private)
+---@class ExplodeOnDamageComponent : Component
+---@field explode_on_death_percent number @rolls a dice (0 - 1) if we explode on death [default: 1, range: [0, 1]]
+---@field explode_on_damage_percent number @rolls a dice (0 - 1) if we explode on damage [default: 1, range: [0, 1]]
+---@field physics_body_modified_death_probability number @if we get message about the physics body being modified, do we explode on what percent [default: 0, range: [0, 1]]
+---@field physics_body_destruction_required number @how big of percent of our body, do we need to lose before we explode [default: 0.5, range: [0, 1]]
+---@field mDone boolean @(private) [default: 0, range: [0, 1]]
+---@field config_explosion table @(object) if we have explosion, it's the setup for it
+---@class ExplosionComponent : Component
+---@field timeout_frames number @for timer [default: 0, range: [0, 180]]
+---@field timeout_frames_random number @a random value between 0 and 'timout_frames_random' is added to timer [default: 0, range: [0, 180]]
+---@field kill_entity boolean @if 1, we kill the entity when exploding [default: 1, range: [0, 1]]
+---@field mTimerTriggerFrame number @[default: -1, range: [0, 1]]
+---@field config_explosion table @(object) setup for out explosion
+---@field - integer @(custom type) what triggers the explosion [default: ]
+---@class FishAIComponent : Component
+---@field direction number @[default: 0, range: [-1, 1]]
+---@field speed number @[default: 100, range: [1, 1000]]
+---@field velocity table @(private)
+---@field stuck_counter number @(private) [default: 0, range: [0, 1]]
+---@field mLastCheckPos table @(private)
+---@field aabb_min table @(custom type)
+---@field aabb_max table @(custom type)
+---@class FlyingComponent : Component
+---@field type number @type of flight, 1 = perlin noise [default: 0, range: [0, 1]]
+---@field perlin_freq number @frequency of the perlin noise sampling [default: 0.2, range: [0, 1]]
+---@field perlin_time_freq number @t *= perlin_time_freq [default: 0.3, range: [0, 1]]
+---@field perlin_wind_x number @wind velocity that gets added to the samples [default: 0, range: [-1, 1]]
+---@field perlin_wind_y number @wind velocity that gets added to the samples [default: 0, range: [-1, 1]]
+---@class FogOfWarRadiusComponent : Component
+---@field radius number @256 is the default player has [default: 256, range: [0, 1024]]
+---@class FogOfWarRemoverComponent : Component
+---@field radius number @[default: 140, range: [0, 2000]]
+---@class GameAreaEffectComponent : Component
+---@field radius number @what's the radius (in pixels) of the area effect [default: 0, range: [0, 3.5]]
+---@field collide_with_tag string @the tags we're looking for [default: hittable, range: [0, 1]]
+---@field frame_length number @if not 0 will reapply this effect after this many frames have gone by [default: -1, range: [0, 1]]
+---@field mEntitiesAppliedOutTo table @(private)
+---@field mEntitiesAppliedFrame table @(private)
+---@field game_effect_entitities table @(custom type) just a vector of the game_effect entities
+---@class GameEffectComponent : Component
+---@field custom_effect_id string @if 'effect' is set to 'CUSTOM', this will define effect uniqueness.
+---@field frames number @how many frames does it affect -1 = forever [default: -1, range: [0, 1]]
+---@field exclusivity_group number @if > 0, previous game effects with the same exclusivity group as new one will be removed when calling LoadGameEffectEntityTo [default: 0, range: [0, 1]]
+---@field report_block_msg boolean @to disable the block message that rises [default: 1, range: [0, 1]]
+---@field disable_movement boolean @if set, will disable movement [default: 0, range: [0, 1]]
+---@field ragdoll_effect_custom_entity_file string @an entity that is loaded to each ragdoll part if 'ragdoll_effect' is set to 'CUSTOM_RAGDOLL_ENTITY'
+---@field ragdoll_fx_custom_entity_apply_only_to_largest_body boolean @if 1, 'ragdoll_effect_custom_entity_file' is loaded only to the largest piece in the ragdoll  [default: 0, range: [0, 1]]
+---@field polymorph_target string @when doing a polymorph, this is what we convert it to
+---@field mSerializedData table @polymorph stores the serialized entity here...
+---@field mCaster number @Contains a handle to the caster of this GameEffect [default: 0, range: [0, 1]]
+---@field mCasterHerdId number @Contains the herd if of the caster of this GameEffect [default: 0, range: [0, 1]]
+---@field teleportation_probability number @How likely is it that we teleport, larger = less often [default: 600, range: [0, 1]]
+---@field teleportation_delay_min_frames number @Never teleports more often that this [default: 30, range: [0, 1]]
+---@field teleportation_radius_min number @[default: 128, range: [0, 1]]
+---@field teleportation_radius_max number @[default: 1024, range: [0, 1]]
+---@field teleportations_num number @How many times has this GameEffectComponent teleported the owner? [default: 0, range: [0, 1]]
+---@field no_heal_max_hp_cap number @If current hp is less than this, we store it here. Then we make sure the hp never exceeds this. [default: 3.40282e+038, range: [0, 1]]
+---@field caused_by_ingestion_status_effect boolean @Did this effect occur because someone ate something? [default: 0, range: [0, 1]]
+---@field caused_by_stains boolean @was this caused by stains [default: 0, range: [0, 1]]
+---@field mCharmDisabledCameraBound boolean @When charmed, will try to disable CameraBound. This keeps track if we've done it, so we can enable it back [default: 0, range: [0, 1]]
+---@field mCharmEnabledTeleporting boolean @When charmed, will try to enable teleporting (tag:teleportable_NOT). This keeps track if we've done it, so we can disable it again [default: 0, range: [0, 1]]
+---@field mInvisible boolean @Are we invisible? [default: 0, range: [0, 1]]
+---@field mCounter number @Counts stuff [default: 0, range: [0, 1]]
+---@field mCooldown number @Counts cooldown [default: 0, range: [0, 1]]
+---@field mIsExtension boolean @If 1, this is an effect extension and shouldn't create an extension when removed [default: 0, range: [0, 1]]
+---@field mIsSpent boolean @NOTE( Petri ): 29.4.2024 - this is used internally to make RESPAWN perk disabled in the UI [default: 0, range: [0, 1]]
+---@field effect integer @(custom type) GAME_EFFECT
+---@field ragdoll_effect integer @(custom type) if set, will use this for ragdoll effect
+---@field ragdoll_material number @(custom type) converts to string name of the material that ragdoll is made out of [default: 0, range: [0, 1]]
+---@field causing_status_effect table @(custom type) Status effect that caused this game effect, if any [default: 0, range: [0, 1]]
+---@class GameLogComponent : Component
+---@field report_death boolean @switches on reporting things [default: 1, range: [0, 1]]
+---@field report_damage boolean @if set, will report when receiving damage [default: 0, range: [0, 1]]
+---@field report_new_biomes boolean @if false, won't report when player enters new biomes [default: 1, range: [0, 1]]
+---@field mNewBiomeCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field mVisitiedBiomes table @(custom type) list of visited biomes
+---@class GameStatsComponent : Component
+---@field name string @no one uses the name variable on entity, so we have to do this to make it happen
+---@field stats_filename string @also generated from the gunk
+---@field is_player boolean @if true, will use the session file for loading stats [default: 0, range: [0, 1]]
+---@field extra_death_msg string @set when e.g. polymorphed
+---@field dont_do_logplayerkill boolean @if 1, StatsLogPlayerKill must be manually called from lua [default: 0, range: [0, 1]]
+---@field player_polymorph_count number @skip loading of stats if this higher than 0 and decrament this by one [default: 0, range: [0, 1]]
+---@class GasBubbleComponent : Component
+---@field acceleration number @[default: -1, range: [-100, 0]]
+---@field max_speed number @[default: 20, range: [0, 20]]
+---@field mVelocity number @(private) [default: 0, range: [0, 1]]
+---@class GenomeDataComponent : Component
+---@field is_predator boolean @Predators are considered threats by other species and hunt for food. [default: 0, range: [0, 1]]
+---@field food_chain_rank number @0 means king of the hill. Greater number = more likely to get eaten by other species. [default: 0, range: [0, 200]]
+---@field berserk_dont_attack_friends boolean @if 1, this animal will not try to attack player who would normally be its friend [default: 0, range: [0, 1]]
+---@field friend_thundermage boolean @(private) if 1, thunder mage doesn't attack this
+---@field friend_firemage boolean @(private) if 1, fire mage doesn't attack this
+---@field herd_id number @(custom type) This is used for example to separate people in different tribes.
+---@class GhostComponent : Component
+---@field speed number @pixels per second [default: 5, range: [0, 1]]
+---@field new_hunt_target_check_every number @how often do we look for targets [default: 0, range: [0, 1]]
+---@field hunt_box_radius number @[default: 512, range: [0, 1]]
+---@field aggressiveness number @if higher than relations then will attack [default: 100, range: [0, 1]]
+---@field max_distance_from_home number @how far from home can we go? [default: 300, range: [0, 1]]
+---@field die_if_no_home boolean @if set to false will die, if it can't find home [default: 1, range: [0, 1]]
+---@field target_tag string @if something else (like mortal), will attack the home [default: player_unit, range: [0, 1]]
+---@field mEntityHome number @(private) where is our home? [default: 0, range: [0, 1]]
+---@field mFramesWithoutHome number @(private) [default: 0, range: [0, 1]]
+---@field mTargetPosition table @(private)
+---@field mTargetEntityId number @(private) [default: 0, range: [0, 1]]
+---@field mRandomTarget table @(private)
+---@field mNextTargetCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field velocity table @(custom type)
+---@class GodInfoComponent : Component
+---@field mana_current number @How much mana the player now has to use [default: 0, range: [0, 1000]]
+---@field mana_max number @Max size of the mana pool [default: 500, range: [0, 1000]]
+---@field gold number @How much gold the player has [default: 0, range: [0, 1000]]
+---@field god_entity userdata @(private)
+---@class HitEffectComponent : Component
+---@field value number @Usage depends on selected 'effect_hit' [default: 0, range: [0, 100]]
+---@field value_string string @Usage depends on selected 'effect_hit'
+---@field condition_effect integer @(custom type) Hit entity needs to have this 'GAME_EFFECT' for effects to apply. If both 'condition_effect' and 'condition_status' are set, they are combined with AND logic
+---@field condition_status table @(custom type) Hit entity needs to have this 'STATUS_EFFECT' for effects to apply [default: 0, range: [0, 1]]
+---@field effect_hit integer @(custom type) What kind of 'HIT_EFFECT' is applied to hit entity if condition is true
+---@class HitboxComponent : Component
+---@field is_player boolean @[default: 0, range: [0, 1]]
+---@field is_enemy boolean @[default: 1, range: [0, 1]]
+---@field is_item boolean @[default: 0, range: [0, 1]]
+---@field aabb_min_x number @[default: -5, range: [-15, 15]]
+---@field aabb_max_x number @[default: 5, range: [-15, 15]]
+---@field aabb_min_y number @[default: -5, range: [-15, 15]]
+---@field aabb_max_y number @[default: 5, range: [-15, 15]]
+---@field damage_multiplier number @All damage from hits to this hitbox is multiplied with this value before applying it. [default: 1, range: [0, 1]]
+---@field dead boolean @(private) [default: 0, range: [0, 1]]
+---@field offset table @(custom type)
+---@class HomingComponent : Component
+---@field target_tag string @[default: homing_target, range: [0, 1]]
+---@field target_who_shot boolean @If 1, targets who shot the projectile, ignores 'target_tag'. [default: 0, range: [0, 1]]
+---@field detect_distance number @[default: 150, range: [0, 1000]]
+---@field homing_velocity_multiplier number @[default: 0.9, range: [-100, 100]]
+---@field homing_targeting_coeff number @[default: 160, range: [0, 1000]]
+---@field just_rotate_towards_target boolean @the default accelerates towards a target. If true will only rotate towards the target. [default: 0, range: [0, 1]]
+---@field max_turn_rate number @radians. If just_rotate_towards_target then this is the maximum radians it can turn per frame [default: 0.05, range: [0, 6.283]]
+---@field predefined_target number @If set, we track this entity [default: 0, range: [0, 1]]
+---@field look_for_root_entities_only boolean @if set, will only look for entities that are _not_ child entities. [default: 0, range: [0, 1]]
+---@class HotspotComponent : Component
+---@field transform_with_scale boolean @[default: 1, range: [0, 1]]
+---@field sprite_hotspot_name string
+---@field offset table @(custom type)
+---@class IKLimbAttackerComponent : Component
+---@field radius number @[default: 54, range: [0, 1]]
+---@field leg_velocity_coeff number @[default: 15, range: [0, 1]]
+---@field targeting_radius number @[default: 120, range: [0, 1]]
+---@field targeting_raytrace boolean @[default: 1, range: [0, 1]]
+---@field target_entities_with_tag string @[default: mortal, range: [0, 1]]
+---@field mTargetEntity number @(private) [default: 0, range: [0, 1]]
+---@field mState table @(private)
+---@field mStateTimer number @(private) [default: 0, range: [0, 1]]
+---@field mTarget table @(custom type)
+---@class IKLimbComponent : Component
+---@field length number @[default: 40, range: [0, 1]]
+---@field thigh_extra_lenght number @[default: 2, range: [0, 1]]
+---@field mJointSideInterpolation number @[default: 0, range: [0, 1]]
+---@field mPart0PrevPos table @(private)
+---@field mPart0PrevRotation number @(private) [default: 0, range: [0, 1]]
+---@field mPart1PrevPos table @(private)
+---@field mPart1PrevRotation number @(private) [default: 0, range: [0, 1]]
+---@field end_position table @(custom type)
+---@field mJointWorldPos table @(custom type)
+---@field mEndPrevPos table @(custom type)
+---@class IKLimbWalkerComponent : Component
+---@field ground_attachment_min_spread number @[default: 16, range: [0, 1]]
+---@field ground_attachment_max_tries number @[default: 10, range: [0, 1]]
+---@field ground_attachment_max_angle number @[default: 0.8, range: [0, 1]]
+---@field ground_attachment_ray_length_coeff number @[default: 1.15, range: [0, 1]]
+---@field leg_velocity_coeff number @[default: 15, range: [0, 1]]
+---@field affect_flying boolean @if set, will cause the mFlyingTime (in CharacterDataComponent) of the parent to be 0 or 1 depending on if we're touching anything [default: 0, range: [0, 1]]
+---@field mState number @0 = detached, 1 = attached [default: 0, range: [0, 1]]
+---@field ray_skip_material number @(custom type) String name of material to not cast rays against. Defaults to 'aluminium' [default: 0, range: [0, 1]]
+---@field mTarget table @(custom type)
+---@field mPrevTarget table @(custom type)
+---@field mPrevCenterPosition table @(custom type)
+---@class IKLimbsAnimatorComponent : Component
+---@field future_state_samples number @The number of future animation states evaluated to find the next state [default: 10, range: [0, 1]]
+---@field ground_attachment_ray_length_coeff number @Limb raycast length is (ground_attachment_ray_length_coeff * limb length) [default: 1.15, range: [0, 1]]
+---@field leg_velocity_coeff number @Limbs are moved towards target position at a pace affected by this value. [default: 15, range: [0, 1]]
+---@field affect_flying boolean @If set, will cause the mFlyingTime (in CharacterDataComponent) of the entity to be 0 or 1 depending on if the limbs are touching ground [default: 0, range: [0, 1]]
+---@field large_movement_penalty_coeff number @The movement score is multiplied by this value if a large move would occur [default: 0.25, range: [0, 1]]
+---@field no_ground_attachment_penalty_coeff number @If a limb movement would make it not collide with ground, the movement score is multiplied with this value. Use lower values to make the limbs prioritize attaching to walls. [default: 0.75, range: [0, 1]]
+---@field is_limp boolean @If 1, will apply verlet animation to simulate ragdoll-like limbs [default: 0, range: [0, 1]]
+---@field mLimbStates table @(private)
+---@field mHasGroundAttachmentOnAnyLeg boolean @(private) Will be set to true if at least one leg is attached to ground. [default: 0, range: [0, 1]]
+---@field ray_skip_material number @(custom type) String name of material to not cast rays against. Defaults to 'aluminium' [default: 0, range: [0, 1]]
+---@field mPrevBodyPosition table @(custom type)
+---@class IngestionComponent : Component
+---@field ingestion_size number @How many units of material we currently store [default: 0, range: [0, 1]]
+---@field ingestion_capacity number @How many units of material we can store [default: 7500, range: [0, 1]]
+---@field ingestion_cooldown_delay_frames number @How many frames is ingestion_size retained after last time eating? [default: 600, range: [0, 1]]
+---@field ingestion_reduce_every_n_frame number @One unit of ingestion_size is removed every N frame [default: 5, range: [0, 1]]
+---@field overingestion_damage number @How much damage per overingested cell is applied [default: 0.002, range: [0, 1]]
+---@field blood_healing_speed number @affects healing speed if entity has HEALING_BLOOD game effect. The amount of hp restored per one blood cell. [default: 0.0008, range: [0, 1000]]
+---@field ingestion_satiation_material_tag string @If set, only materials with this tag will increase satiation level
+---@field m_ingestion_cooldown_frames number @Next frame ingestion_size cooldown can occur [default: 0, range: [0, 1]]
+---@field m_next_overeating_msg_frame number @(private) [default: 0, range: [0, 1]]
+---@field m_ingestion_satiation_material_tag_cached string @(private)
+---@field m_ingestion_satiation_material_cache table @(private)
+---@field m_damage_effect_lifetime number @(private) [default: 0, range: [0, 1]]
+---@class InheritTransformComponent : Component
+---@field use_root_parent boolean @if 1, we use the root of our entity hierarchy instead of the immediate parent [default: 0, range: [0, 1]]
+---@field only_position boolean @if 1, we only inherit position. it is calculated as follows: parent_position + parent_offset * parent_scale [default: 0, range: [0, 1]]
+---@field parent_hotspot_tag string @if set, we apply the offset of parent HotSpot with this tag
+---@field parent_sprite_id number @if >= 0, the Nth sprite transform in parent entity is inherited [default: -1, range: [0, 1]]
+---@field always_use_immediate_parent_rotation boolean @if 1, we use the immediate parent for rotation, no matter what other properties say [default: 0, range: [0, 1]]
+---@field rotate_based_on_x_scale boolean @if 1, the rotation is set to 0 deg if scale >= 0 else to 180 deg [default: 0, range: [0, 1]]
+---@field mUpdateFrame number @(private) [default: -1, range: [0, 1]]
+---@field Transform table @(custom type)
+---@class InteractableComponent : Component
+---@field radius number @Distance from entity position where interaction is possible [default: 10, range: [0, 1]]
+---@field ui_text string @key or string for the text to display
+---@field name string @this name is called to the on_interacted function on LuaComponents
+---@field exclusivity_group number @If > 0, only 1 instance of this interaction can be display at the same time [default: 0, range: [0, 1]]
+---@class Inventory2Component : Component
+---@field quick_inventory_slots number @[default: 10, range: [0, 30]]
+---@field full_inventory_slots_x number @[default: 8, range: [0, 30]]
+---@field full_inventory_slots_y number @[default: 8, range: [0, 30]]
+---@field mSavedActiveItemIndex number @Used to retain active item across save/load. Don't touch this unless you know what you're doing! [default: 0, range: [0, 1]]
+---@field mActiveItem number @(private) NOTE: Don't attempt to directly change the value of this field via lua code. It will probably break the game logic in obvious or subtle ways. [default: 0, range: [0, 1]]
+---@field mActualActiveItem number @(private) NOTE: Don't attempt to directly change the value of this field via lua code. It will probably break the game logic in obvious or subtle ways. [default: 0, range: [0, 1]]
+---@field mActiveStash number @(private) [default: 0, range: [0, 1]]
+---@field mThrowItem number @(private) Is used to store the item that is being thrown, instead of mActiveItem, since the player can switch items (mActiveItem) during the throwing animation [default: 0, range: [0, 1]]
+---@field mItemHolstered boolean @(private) [default: 0, range: [0, 1]]
+---@field mInitialized boolean @(private) [default: 0, range: [0, 1]]
+---@field mForceRefresh boolean @(private) [default: 0, range: [0, 1]]
+---@field mDontLogNextItemEquip boolean @(private) [default: 0, range: [0, 1]]
+---@field mSmoothedItemXOffset number @(private) [default: 0, range: [0, 1]]
+---@field mLastItemSwitchFrame number @(private) [default: 0, range: [0, 1]]
+---@field mIntroEquipItemLerp number @(private) [default: 1, range: [0, 1]]
+---@field mSmoothedItemAngleVec table @(private)
+---@class InventoryComponent : Component
+---@field ui_container_type number @UI_CONTAINER_TYPES enum [default: 1, range: [0, 1]]
+---@field ui_element_sprite string @ui back sprite [default: data/ui_gfx/inventory/inventory_box.png, range: [0, 1]]
+---@field actions string @list of actions, used for serialization
+---@field - table @(private) listener to keep ui up with ability changes [default: ]
+---@field items table @(private)
+---@field ui_container_size table @(custom type) ui size, how many items x*y we can fit in
+---@field ui_element_size table @(custom type) ui size
+---@field ui_position_on_screen table @(custom type) where do we load this on screen
+---@class InventoryGuiComponent : Component
+---@field has_opened_inventory_edit boolean @[default: 0, range: [0, 1]]
+---@field wallet_money_target number @[default: 0, range: [0, 1]]
+---@field mDisplayFireRateWaitBar boolean @hax, don't touch! [default: 0, range: [0, 1]]
+---@field imgui userdata @(private)
+---@field mLastFrameInteracted number @(private) [default: -100, range: [0, 1]]
+---@field mLastFrameActionsVisible number @(private) [default: -1, range: [0, 1]]
+---@field mLastPurchasedAction userdata @(private)
+---@field mActive boolean @(private) [default: 0, range: [0, 1]]
+---@field mAlpha number @(private) [default: 1, range: [0, 1]]
+---@field mBackgroundOverlayAlpha number @(private) [default: 0, range: [0, 1]]
+---@field mFrameShake_ReloadBar number @(private) for animations of shaking them bars [default: 0, range: [0, 1]]
+---@field mFrameShake_ManaBar number @(private) for animations of shaking them bars [default: 0, range: [0, 1]]
+---@field mFrameShake_FlyBar number @(private) for animations of shaking them bars [default: 0, range: [0, 1]]
+---@field mFrameShake_FireRateWaitBar number @(private) for animations of shaking them bars [default: 0, range: [0, 1]]
+---@class ItemAIKnowledgeComponent : Component
+---@field is_ranged_weapon boolean @[default: 0, range: [0, 1]]
+---@field is_throwable_weapon boolean @[default: 0, range: [0, 1]]
+---@field is_melee_weapon boolean @[default: 0, range: [0, 1]]
+---@field is_self_healing boolean @[default: 0, range: [0, 1]]
+---@field is_other_healing boolean @[default: 0, range: [0, 1]]
+---@field is_self_buffing boolean @[default: 0, range: [0, 1]]
+---@field is_other_buffing boolean @[default: 0, range: [0, 1]]
+---@field is_weapon boolean @[default: 0, range: [0, 1]]
+---@field is_known boolean @[default: 0, range: [0, 1]]
+---@field is_safe boolean @[default: 1, range: [0, 1]]
+---@field is_consumed boolean @[default: 0, range: [0, 1]]
+---@field never_use boolean @[default: 0, range: [0, 1]]
+---@field ranged_min_distance number @[default: 0, range: [0, 1]]
+---@class ItemActionComponent : Component
+---@field action_id string @the name ID of the action
+---@class ItemChestComponent : Component
+---@field item_count_min number @[default: 0, range: [0, 1e+006]]
+---@field item_count_max number @[default: 0, range: [0, 1e+006]]
+---@field level number @[default: 0, range: [0, 1e+006]]
+---@field enemy_drop boolean @enemy_drop, if set will modify the item_count_min, item_count_max... [default: 0, range: [0, 1]]
+---@field actions string @e.g. 'bullet,bullet,damage' ... actions are parsed into a string
+---@field action_uses_remaining string @e.g. '10,10,-1' ... action uses remaining counts are parsed into a string
+---@field other_entities_to_spawn string @file names of other entities we should spawn from this chest, comma separated
+---@field int table @this is used to figure out what we spawn from this chest [default: mSeed                                                           0, range: [0, 1]]
+---@class ItemComponent : Component
+---@field item_name string @the name of the item
+---@field is_stackable boolean @does this item stack on other items the same 'item_name' in the inventory? [default: 0, range: [0, 1]]
+---@field is_consumable boolean @if 1, using this item will reduce 'uses_remaining'. When it reaches zero the item is destroyed [default: 0, range: [0, 1]]
+---@field stats_count_as_item_pick_up boolean @does this count as an item that was picked up in the stats [default: 1, range: [0, 1]]
+---@field auto_pickup boolean @if 1, item will be automatically picked up, no pickup hint is shown [default: 0, range: [0, 1]]
+---@field permanently_attached boolean @if 1, this item can't be removed from a container once it is put inside one [default: 0, range: [0, 1]]
+---@field uses_remaining number @how many times can this item be used? -1 = unlimited, will be reset to gun_actions.lua max_uses by inventorygui_system, -2 = unlimited unlimited [default: -1, range: [0, 1]]
+---@field is_identified boolean @is it known what this item does? [default: 1, range: [0, 1]]
+---@field is_frozen boolean @if 1, this item can't be modified or moved from a wand [default: 0, range: [0, 1]]
+---@field collect_nondefault_actions boolean @does player keep this item when respawning? [default: 0, range: [0, 1]]
+---@field remove_on_death boolean @is this entity destroyed when it's in an inventory and the inventory owner dies? [default: 0, range: [0, 1]]
+---@field remove_on_death_if_empty boolean @is this entity destroyed when it's in an inventory, empty and the inventory owner dies? [default: 0, range: [0, 1]]
+---@field remove_default_child_actions_on_death boolean @if true, the default AbilityComponent.child_actions in this items will be removed when it dies [default: 0, range: [0, 1]]
+---@field play_hover_animation boolean @if 1, the item will play a hovering animation [default: 0, range: [0, 1]]
+---@field play_spinning_animation boolean @if 1, the item will play a spinning animation, if player_hover_animation is 0 [default: 1, range: [0, 1]]
+---@field is_equipable_forced boolean @if 1, the default logic for determining if an item can be equiped in inventory is overridden and this can be always equipped [default: 0, range: [0, 1]]
+---@field play_pick_sound boolean @if 1, plays a default sound when picked [default: 1, range: [0, 1]]
+---@field drinkable boolean @if 0 you cannot drink this, default is 1, because that's how it was implemented and backwards compatibility [default: 1, range: [0, 1]]
+---@field max_child_items number @number of items this can hold inside itself. TODO: get rid of all uses of 'ability->gun_config.deck_capacity' and replace them with this! [default: 0, range: [0, 1]]
+---@field ui_sprite string @sprite displayed for the item in various UIs. If not empty overrides sprites declared by Ability and ItemAction
+---@field ui_description string @item description displayed in various UIs
+---@field enable_orb_hacks boolean @[default: 0, range: [0, 1]]
+---@field is_all_spells_book boolean @[default: 0, range: [0, 1]]
+---@field always_use_item_name_in_ui boolean @[default: 0, range: [0, 1]]
+---@field custom_pickup_string string @if set, this is used for the 'Press $0 to pick $1' message
+---@field ui_display_description_on_pick_up_hint boolean @[default: 0, range: [0, 1]]
+---@field next_frame_pickable number @[default: 0, range: [0, 1]]
+---@field npc_next_frame_pickable number @NPC have their own next_frame_pickable, because this is used to make NPCs not pick up gold, which also meant player couldn't pick up that gold [default: 0, range: [0, 1]]
+---@field is_pickable boolean @can this be picked up and placed on someone's inventory [default: 1, range: [0, 1]]
+---@field is_hittable_always boolean @to override the weirdness that is is_pickable, which affects if this is hittable or not. If true, will always be hittable regardless of is_pickable [default: 0, range: [0, 1]]
+---@field item_pickup_radius number @how many pixels away can this item be picked up from [default: 14.1, range: [0, 1]]
+---@field camera_max_distance number @how far can we move the camera from the player when this item is equipped [default: 50, range: [0, 1]]
+---@field camera_smooth_speed_multiplier number @how quickly does the camera follow player? [default: 1, range: [0, 1]]
+---@field has_been_picked_by_player boolean @[default: 0, range: [0, 1]]
+---@field mFramePickedUp number @[default: 0, range: [0, 1]]
+---@field mItemUid number @(private) [default: 0, range: [0, 1]]
+---@field mIsIdentified boolean @(private) [default: 1, range: [0, 1]]
+---@field spawn_pos table @(custom type) the position where this item spawned
+---@field preferred_inventory integer @(custom type) Which inventory do we go to when we're picked up, if it's not full.
+---@field inventory_slot table @(custom type) our preferred slot (x,y) in the inventory
+---@class ItemCostComponent : Component
+---@field cost number @[default: 100, range: [0, 3500]]
+---@field stealable boolean @if set - will check that it's within an area called shop [default: 0, range: [0, 1]]
+---@field mExCost number @(private) used to change the text on the sprite [default: -1, range: [0, 1]]
+---@class ItemPickUpperComponent : Component
+---@field is_in_npc boolean @[default: 0, range: [0, 1]]
+---@field pick_up_any_item_buggy boolean @If true, will pick up _any_ item. Breaks all kinds of things, but maybe mods will find this fun to mess around with [default: 0, range: [0, 1]]
+---@field is_immune_to_kicks boolean @if set, won't drop the wand if kicked. Mainly used by wand ghosts. [default: 0, range: [0, 1]]
+---@field only_pick_this_entity number @picks up this entity and only this entity. Overrides the is_in_npc checks that try to limit things to pickuppable wands [default: 0, range: [0, 1]]
+---@field drop_items_on_death boolean @if true, will drop all items. E.g. if true for player, player drops their wands [default: 1, range: [0, 1]]
+---@field mLatestItemOverlapInfoBoxPosition table @(custom type)
+---@class ItemRechargeNearGroundComponent : Component
+---@field TEMP_TEMPY number @[default: 0, range: [0, 3.5]]
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@class ItemStashComponent : Component
+---@field throw_openable_cooldown_frames number @[default: 30, range: [0, 180]]
+---@field init_children boolean @[default: 1, range: [0, 1]]
+---@field mNextFrameOpenable number @(private) [default: 0, range: [0, 1]]
+---@field mFrameOpened number @(private) [default: -1, range: [0, 1]]
+---@class KickComponent : Component
+---@field can_kick boolean @e.g. telekinetic kick disables this [default: 1, range: [0, 1]]
+---@field kick_radius number @[default: 3, range: [0, 3.5]]
+---@field telekinesis_throw_speed number @this is here, so that STRONG_KICK -perk can affect telekinetic kick as well [default: 25, range: [0, 1]]
+---@field kick_entities string @comma separated list of entities that are loaded when player kicks
+---@field max_force number @(custom type)
+---@field player_kickforce number @(custom type)
+---@field kick_damage number @(custom type) ( 1.f / 25.f )
+---@field kick_knockback number @(custom type) knockback force for entities
+---@class LaserEmitterComponent : Component
+---@field is_emitting boolean @If 1, will emit all the time [default: 1, range: [0, 1]]
+---@field emit_until_frame number @Can be used to activate a laser temporarily [default: -1, range: [0, 1]]
+---@field laser_angle_add_rad number @Beam angle = entity angle + laser_angle_add_rad [default: 0, range: [0, 1]]
+---@field laser table @(object)
+---@class LevitationComponent : Component
+---@field radius number @the radius in which we look for entities / bodies to float [default: 20, range: [1, 50]]
+---@field entity_force number @how much do we apply the mouse movements to the entitiy [default: 0.3, range: [0, 1]]
+---@field box2d_force number @how much do we apply the mouse movements to the entitiy [default: 0.3, range: [0, 1]]
+---@field effect_lifetime_frames number @[default: 600, range: [1, 600]]
+---@class LifetimeComponent : Component
+---@field lifetime number @if anything else than -1 will kill this entity when this many frames have passed [default: -1, range: [0, 1]]
+---@field fade_sprites boolean @if 1, sprites will be faded as lifetime gets lower [default: 0, range: [0, 1]]
+---@field kill_parent boolean @if 1, will kill the parent entity [default: 0, range: [0, 1]]
+---@field kill_all_parents boolean @if 1, will kill all the parents entity [default: 0, range: [0, 1]]
+---@field serialize_duration boolean @if 1, will retain kill_frame and creation_frame over serialization [default: 0, range: [0, 1]]
+---@field kill_frame_serialized number @frame that this is killed at [default: 0, range: [0, 1]]
+---@field creation_frame_serialized number @frame that this is killed at [default: 0, range: [0, 1]]
+---@field creation_frame number @(private) we'll set this to GG.GetFrameNum() when this component is created [default: 0, range: [0, 1]]
+---@field kill_frame number @(private) frame that this is killed at [default: 0, range: [0, 1]]
+---@field randomize_lifetime table @(custom type) this is added to the lifetime
+---@class LightComponent : Component
+---@field update_properties boolean @turn this on if you expect this to function like the other components [default: 0, range: [0, 1]]
+---@field radius number @The radius of the light in world pixels. [default: 0, range: [0, 3000]]
+---@field int table @Color red 0-255 [default: r                                                               255, range: [0, 255]]
+---@field int table @Color green 0-255 [default: g                                                               178, range: [0, 255]]
+---@field int table @Color blue 0-255 [default: b                                                               118, range: [0, 255]]
+---@field offset_x number @Offset from the center of entity. [default: 0, range: [-3000, 3000]]
+---@field offset_y number @Offset from the center of entity. [default: 0, range: [-3000, 3000]]
+---@field fade_out_time number @time in seconds, if not 0, this is how long this takes to die, when the component is destroyed [default: 0, range: [0, 5]]
+---@field blinking_freq number @if less than 1, will blink randomly when rand() < blinking_freq [default: 1, range: [0, 1]]
+---@field mAlpha number @(private) [default: 1, range: [0, 1]]
+---@field mSprite userdata @(private)
+---@class LightningComponent : Component
+---@field sprite_lightning_file string @particle effect, from where the file is loaded that lightning is generated from [default: data/particles/lightning_ray.png, range: [0, 1]]
+---@field is_projectile boolean @if this is true, it's a projectile lightning and looks for ProjectileComponent and uses the data from there to move it [default: 0, range: [0, 1]]
+---@field explosion_type number @1 = lightning trail [default: 1, range: [0, 1]]
+---@field arc_lifetime number @remaining number of frames the arc exists [default: 60, range: [0, 1]]
+---@field mExPosition table @(private) stores the ex position of this entity
+---@field mArcTarget number @(private) if 'mArcTarget' points to an existing entity a lighting arc will be created between this entity and 'mArcTarget' [default: 0, range: [0, 1]]
+---@field config_explosion table @(object)
+---@class LimbBossComponent : Component
+---@field state number @[default: 0, range: [0, 1]]
+---@field mStatePrev number @(private) [default: -1, range: [0, 1]]
+---@field mMoveToPositionX number @(private) [default: 0, range: [0, 1]]
+---@field mMoveToPositionY number @(private) [default: 0, range: [0, 1]]
+---@class LiquidDisplacerComponent : Component
+---@field radius number @[default: 1, range: [0, 20]]
+---@field velocity_x number @[default: 30, range: [0, 100]]
+---@field velocity_y number @[default: 30, range: [0, 100]]
+---@field mPrevX number @(private) [default: 0, range: [0, 1]]
+---@field mPrevY number @(private) [default: 0, range: [0, 1]]
+---@class LoadEntitiesComponent : Component
+---@field entity_file string @path to the entity file we should load
+---@field kill_entity boolean @if 1, we kill our entity when it is created [default: 1, range: [0, 1]]
+---@field timeout_frames number @for timer [default: 0, range: [0, 180]]
+---@field mTimerTriggerFrame number @[default: -1, range: [0, 1]]
+---@field count table @(custom type) how many entities should be loaded (random range)
+---@class LocationMarkerComponent : Component
+---@field id number @[default: 0, range: [0, 3]]
+---@class LooseGroundComponent : Component
+---@field probability number @how often do we do this... shoots a ray in random direction and does the loosening [default: 0, range: [0, 1]]
+---@field max_durability number @if material durability > max_durability, it is not loosened [default: 2147483647, range: [0, 1]]
+---@field max_distance number @how far raytraces to find things to loosen up [default: 256, range: [0, 1]]
+---@field max_angle number @how much raytraces go to different directions around the up-vector. pi=full circle [default: 1.57, range: [0, 1]]
+---@field min_radius number @the minimum radius of our loosening of pixels [default: 3, range: [0, 1]]
+---@field max_radius number @the maximum radius of our loosening of pixels [default: 8, range: [0, 1]]
+---@field chunk_probability number @if > 0, will drop box2d chunks of the ceiling [default: 0, range: [0, 1]]
+---@field chunk_max_angle number @how much raytraces go to different directions around the up-vector. pi=full circle [default: 0.7, range: [0, 1]]
+---@field chunk_count number @how many chunks are we allowed to do, -1 = infinite [default: -1, range: [0, 1]]
+---@field collapse_images string @loads these files randomly to do the collapse shapes [default: data/procedural_gfx/collapse_big/$[0-14].png, range: [0, 1]]
+---@field mChunkCount number @(private) how many chunks are we allowed to do, -1 = infinite [default: 0, range: [0, 1]]
+---@field chunk_material number @(custom type) String name of chunk material [default: 0, range: [0, 1]]
+---@class LuaComponent : Component
+---@field script_source_file string
+---@field execute_on_added boolean @[default: 0, range: [0, 1]]
+---@field execute_on_removed boolean @[default: 0, range: [0, 1]]
+---@field execute_every_n_frame number @1 = execute every frame. 2 = execute every second frame. 3 = execute every third frame and so on. -1 = execute only on add/remove/event [default: 1, range: [1, 150]]
+---@field execute_times number @How many times should the script be executed? < 1 means infinite [default: 0, range: [0, 1]]
+---@field limit_how_many_times_per_frame number @-1 = infinite. Use this to limit how many times this can be executed per frame. Currently only used to limit script_shot from being executed forever. [default: -1, range: [0, 1]]
+---@field limit_to_every_n_frame number @-1 = no limit. Currently only used to limit script_shot from being executed every frame. [default: -1, range: [0, 1]]
+---@field limit_all_callbacks boolean @NOTE( Petri ): 19.8.2023 - by default limit_how_many_times_per_frame and limit_to_every_n_frame only works for script_shot. If this is set to true, will limit all callbacks. Also note that this limit is shared within this component. So if this is true and both script_shot and script_damage_received and both are called within limit_to_every_n_frame frames, only one of them will be called. [default: 0, range: [0, 1]]
+---@field remove_after_executed boolean @[default: 0, range: [0, 1]]
+---@field enable_coroutines boolean @[default: 0, range: [0, 1]]
+---@field call_init_function boolean @ if 1, calls function init( entity_id:int ) after running the code in the file scope of script_source_file along with all mod appends. Does nothing if execute_on_added is 0 [default: 0, range: [0, 1]]
+---@field script_enabled_changed string @if set, calls function 'enabled_changed( entity_id:int, is_enabled:bool )' when the IsEnabled status of this LuaComponent is changed
+---@field script_damage_received string @if set, calls function 'damage_received( damage:number, message:string, entity_thats_responsible:int, is_fatal:bool, projectile_thats_responsible:int )' when we receive a message about damage (Message_DamageReceived)
+---@field script_damage_about_to_be_received string @if set, calls function 'damage_about_to_be_received( damage:number, x:number, y:number, entity_thats_responsible:int, critical_hit_chance:int )' when we receive a message (Message_DamageAboutToBeReceived) -> new_damage:number,new_critical_hit_chance:int
+---@field script_item_picked_up string @if set, calls function 'item_pickup( int entity_item, int entity_pickupper, string item_name )' when message 'Message_ItemPickUp' is called
+---@field script_shot string @if set, calls function 'shot( projectile_entity_id )' when we receive Message_Shot
+---@field script_collision_trigger_hit string @if set, calls function 'collision_trigger( colliding_entity_id )' when we receive Message_CollisionTriggerHit
+---@field script_collision_trigger_timer_finished string @if set, calls function 'collision_trigger_timer_finished()' when we receive Message_CollisionTriggerTimerFinished
+---@field script_physics_body_modified string @if set, calls function 'physics_body_modified( is_destroyed )' when physics body has been modified
+---@field script_pressure_plate_change string @if set, calls function 'pressure_plate_change( new_state )' when PressurePlateComponent decides that things have change
+---@field script_inhaled_material string @if set, calls function 'inhaled_material( material_name, count )' once per second for each inhaled material
+---@field script_death string @if set, calls function 'death( int damage_type_bit_field, string damage_message, int entity_thats_responsible, bool drop_items )' when we receive message Message_Death
+---@field script_throw_item string @if set, calls function 'throw_item( from_x, from_y, to_x, to_y )' when we receive message Message_ThrowItem
+---@field script_material_area_checker_failed string @if set, calls function 'material_area_checker_failed( pos_x, pos_y, )' when we receive message Message_MaterialAreaCheckerFailed
+---@field script_material_area_checker_success string @if set, calls function 'material_area_checker_success( pos_x, pos_y, )' when we receive message Message_MaterialAreaCheckerSuccess
+---@field script_electricity_receiver_switched string @if set, calls function 'electricity_receiver_switched( bool is_electrified )' when we receive message Message_ElectricityReceiverSwitched
+---@field script_electricity_receiver_electrified string @if set, calls function 'electricity_receiver_electrified()' when we receive message Message_ElectricityReceiverElectrified
+---@field script_kick string @if set, calls function 'kick( entity_who_kicked )' when we receive message Message_Kick
+---@field script_interacting string @if set, calls function 'interacting( entity_who_interacted, entity_interacted, interactable_name )' when we receive message Message_Interaction
+---@field script_audio_event_dead string @if set, calls function 'audio_event_dead( bank_file, event_root )' when we receive message Message_AudioEventDead
+---@field script_wand_fired string @if set, calls function 'wand_fired( gun_entity_id )' when we receive Message_WandFired
+---@field script_teleported string @if set, calls function 'teleported( from_x, from_y, to_x, to_y, bool portal_teleport )' when we receive Message_Teleported
+---@field script_portal_teleport_used string @if set, calls function 'portal_teleport_used( entity_that_was_teleported, from_x, from_y, to_x, to_y )' when we receive Message_PortalTeleportUsed
+---@field script_polymorphing_to string @if set, calls function 'polymorphing_to( string_entity_we_are_about_to_polymorph_to )' when we receive Message_PolymorphingTo
+---@field script_biome_entered string @if set, calls function 'biome_entered( string_biome_name, string_biome_old_name )' when this entity changes biomes. Requires BiomeTrackerComponent
+---@field mLastExecutionFrame number @[default: -1, range: [0, 1]]
+---@field mTimesExecutedThisFrame number @tracks how many times we've executed this frame. This will linger on and store the old value of the old frames. Used internally. [default: 0, range: [0, 1]]
+---@field mModAppendsDone boolean @[default: 0, range: [0, 1]]
+---@field mNextExecutionTime number @(private) [default: -1, range: [0, 1]]
+---@field mTimesExecuted number @(private) [default: 0, range: [0, 1]]
+---@field mLuaManager userdata @(private)
+---@field mPersistentValues table @(private)
+---@field vm_type integer @(custom type) Do we share a single Lua virtual machine for everyone who runs 'script_source_file' ('SHARED_BY_MANY_COMPONENTS'), create one VM per one LuaComponent and reuse the VM in case the component runs the script multiple times ('ONE_PER_COMPONENT_INSTANCE'), or create a new VM every time the script is executed ('CREATE_NEW_EVERY_EXECUTION', deprecated)?
+---@class MagicConvertMaterialComponent : Component
+---@field radius number @[default: 256, range: [0, 512]]
+---@field min_radius number @allows for convert to happen from x pixels from the center [default: 0, range: [0, 512]]
+---@field is_circle boolean @[default: 0, range: [0, 1]]
+---@field steps_per_frame number @[default: 10, range: [0, 512]]
+---@field from_material_tag string @the tag of material, e.g. [liquid]
+---@field from_any_material boolean @if 1, converts any cells of any material to 'to_materia' [default: 0, range: [0, 1]]
+---@field clean_stains boolean @[default: 0, range: [0, 1]]
+---@field extinguish_fire boolean @[default: 0, range: [0, 1]]
+---@field fan_the_flames number @if > 0, will call UpdateFire() fan_the_flames times [default: 0, range: [0, 1]]
+---@field temperature_reaction_temp number @if != 0, will use the 'cold_freezes_to_materials' and 'warmth_melts_to_materials' in CellData to convert cells different materials [default: 0, range: [0, 1]]
+---@field ignite_materials number @if > 0, will call Ignite() with ingite_materials as probability_of_fire [default: 0, range: [0, 1]]
+---@field loop boolean @[default: 0, range: [0, 1]]
+---@field kill_when_finished boolean @[default: 1, range: [0, 1]]
+---@field convert_entities boolean @if 1, kills entities with a damagemodel and converts them to 'to_material' [default: 0, range: [0, 1]]
+---@field stain_frozen boolean @petri hax [default: 0, range: [0, 1]]
+---@field reaction_audio_amount number @if > 0, will generate chemical reaction audio at converted cells [default: 0, range: [0, 1]]
+---@field convert_same_material boolean @9.10.2020 - added this because at the end this caused the 'white ring' to appear, set it to false if you don't want constant whiteout [default: 1, range: [0, 1]]
+---@field from_material_array string
+---@field to_material_array string
+---@field mRadius number @[default: 0, range: [0, 512]]
+---@field mUseArrays boolean @(private) [default: 0, range: [0, 1]]
+---@field mFromMaterialArray table @(private)
+---@field mToMaterialArray table @(private)
+---@field from_material number @(custom type) [default: 0, range: [0, 1]]
+---@field to_material number @(custom type) [default: 0, range: [0, 1]]
+---@class MagicXRayComponent : Component
+---@field radius number @[default: 256, range: [0, 512]]
+---@field steps_per_frame number @[default: 10, range: [0, 512]]
+---@field mStep number @[default: 0, range: [0, 1]]
+---@field mRadius number @[default: 0, range: [0, 1]]
+---@class MaterialAreaCheckerComponent : Component
+---@field update_every_x_frame number @if something other than 0 or 1, will only update_every_x_frames  [default: 0, range: [0, 1]]
+---@field look_for_failure boolean @if true, will send message Message_MaterialAreaCheckerFailed if the material doesn't exist. If false, will send a message Message_MaterialAreaCheckerSuccess if the aabb is full of material and material2 [default: 1, range: [0, 1]]
+---@field count_min number @If > 0, and look_for_failure=0, will send message if material count exceeds this number of cells [default: 0, range: [0, 1]]
+---@field always_check_fullness boolean @if 1, and look_for_failure=0, will always check the whole area for cells [default: 0, range: [0, 1]]
+---@field kill_after_message boolean @will kill this entity after sending the message [default: 1, range: [0, 1]]
+---@field mPosition number @(private) keeps track where we are [default: 0, range: [0, 1]]
+---@field mLastFrameChecked number @(private) keeps track of how often we've checked [default: 0, range: [0, 1]]
+---@field area_aabb table @(custom type) aabb offset, we check that this aabb contains only material
+---@field material number @(custom type) String name of material that we check that the aabb contains [default: 0, range: [0, 1]]
+---@field material2 number @(custom type) String name of material2 that we check that the aabb contains [default: 0, range: [0, 1]]
+---@class MaterialInventoryComponent : Component
+---@field drop_as_item boolean @if true, drops a bag that the player can big up [default: 1, range: [0, 1]]
+---@field on_death_spill boolean @if true, on the death this will explode all the materials into air [default: 0, range: [0, 1]]
+---@field leak_gently boolean @NOTE( Petri ): 11.8.2023 - set this to false for old style leaky hidden piles situation. [default: 1, range: [0, 1]]
+---@field leak_on_damage_percent number @if higher than 0 then it might leak when projectile damage happens [default: 0, range: [0, 1]]
+---@field leak_pressure_min number @leak pressure coefficient [default: 0.7, range: [0, 1]]
+---@field leak_pressure_max number @leak pressure coefficient [default: 1.1, range: [0, 1]]
+---@field min_damage_to_leak number @the minimum damage that has to be done in order for a leak to occur [default: 0.09, range: [0, 1]]
+---@field b2_force_on_leak number @if 0, nothing happens, elsewise will add a b2 force to the particleemitter which will push the b2body [default: 0, range: [0, 10]]
+---@field death_throw_particle_velocity_coeff number @how far do we throw material particles on death? [default: 1, range: [0, 1]]
+---@field kill_when_empty boolean @if set, will send MessageDeath when materials are drained [default: 0, range: [0, 1]]
+---@field halftime_materials boolean @if true, will multiply the materials with the given halftimes [default: 0, range: [0, 1]]
+---@field do_reactions number @NOTE( Petri ): 15.8.2023 - if > 0, will do CellReactions between the materials. Value is the percent chance of how often. 100 = every frame  [default: 0, range: [0, 100]]
+---@field do_reactions_explosions boolean @requires do_reactions > 0 - are we allowed to do reaction explosions? [default: 0, range: [0, 1]]
+---@field do_reactions_entities boolean @requires do_reactions > 0 - are we allowed to load entities when doing reactions? [default: 0, range: [0, 1]]
+---@field reaction_speed number @Note( Petri ): 17.8.2023 - how 'fast' do we let reactions happen. How many pixels of material do we convert at one time (5-10) seems like a nice speed. [default: 5, range: [0, 1]]
+---@field reactions_shaking_speeds_up boolean @Note( Petri ): 17.8.2023 - added the ability of shaking the bottle to cause reactions to happen quicker.  [default: 1, range: [0, 1]]
+---@field max_capacity number @how much materials we can store in total. < 0 = infinite [default: -1, range: [0, 1]]
+---@field audio_collision_size_modifier_amount number @if > 0, 'fullness of this container' * 'audio_collision_size_modifier_amount' is added to collision audio event size [default: 0, range: [0, 1]]
+---@field last_frame_drank number @last frame someone ingested from this via IngestionSystem [default: -100, range: [0, 1]]
+---@field is_death_handled boolean @(private) [default: 0, range: [0, 1]]
+---@field ex_position table @(private) used to figure out movement velocity
+---@field ex_angle number @(private) used to figure out movement velocity [default: 0, range: [0, 1]]
+---@field count_per_material_type table @(custom type) Count of each material indexed by material type ID
+---@class MaterialSeaSpawnerComponent : Component
+---@field speed number @How many pixels to cover per one direction per one frame [default: 10, range: [1, 100]]
+---@field sine_wavelength number @Parameters for sine wave that affects material spawn pattern [default: 10, range: [0, 2]]
+---@field sine_amplitude number @Parameters for sine wave that affects material spawn pattern [default: 5, range: [0, 2]]
+---@field noise_scale number @Parameters for noise that affects material spawn pattern [default: 0.1, range: [0, 1]]
+---@field noise_threshold number @Parameters for noise that affects material spawn pattern [default: 0.05, range: [0, 1]]
+---@field m_position number @[default: 0, range: [0, 1]]
+---@field frames_run number @to help keep the effect [default: 0, range: [0, 1]]
+---@field material number @(custom type) String name of material this creates [default: 0, range: [0, 1]]
+---@field size table @(custom type) Size of the area to cover
+---@field offset table @(custom type) Offset of the center of the area to cover
+---@class MaterialSuckerComponent : Component
+---@field material_type number @0 = liquid, 1 = sand, 2 = gas (arbitary order) [default: 0, range: [0, 3]]
+---@field barrel_size number @how many pixels can we suck up [default: 50, range: [0, 1024]]
+---@field num_cells_sucked_per_frame number @How many cells at max can we suck per frame? [default: 1, range: [0, 5]]
+---@field set_projectile_to_liquid boolean @if set, will set the projectile what ever we're sucking...? [default: 0, range: [0, 1]]
+---@field last_material_id number @hax... this is set if we use set_projectile_to_liquid [default: 0, range: [0, 1]]
+---@field suck_gold boolean @if set will just suck gold and update wallet [default: 0, range: [0, 1]]
+---@field suck_health boolean @if set will just suck healthium material and add 1 hp every sucked healthium [default: 0, range: [0, 1]]
+---@field suck_static_materials boolean @will suck static materials from the world [default: 0, range: [0, 1]]
+---@field suck_tag string @if set, will only suck materials with this tag. NOTE, will also require the correct material_type to be set
+---@field mAmountUsed number @how full are we [default: 0, range: [0, 1]]
+---@field mGoldAccumulator number @(private) accumulates amount of gold picked during consecutive frames [default: 0, range: [0, 1]]
+---@field mLastFramePickedGold number @(private) last frame we picked gold [default: -2, range: [0, 1]]
+---@field randomized_position table @(custom type) random offset for pos, where we look for pixels
+---@class MoveToSurfaceOnCreateComponent : Component
+---@field lookup_radius number @[default: 64, range: [0, 64]]
+---@field offset_from_surface number @[default: 2, range: [0, 10]]
+---@field ray_count number @[default: 4, range: [0, 8]]
+---@field verlet_min_joint_distance number @[default: 32, range: [0, 128]]
+---@field - integer @(custom type) [default: ]
+---@class MusicEnergyAffectorComponent : Component
+---@field energy_target number @the energy this makes music go towards [default: 0.5, range: [0, 1]]
+---@field fade_range number @if > 0, fade between 0 and energy_target based on distance to this entity [default: 0, range: [0, 256]]
+---@field trigger_danger_music boolean @if 1, attempts to trigger danger music no matter what energy level is reached [default: 1, range: [0, 1]]
+---@field fog_of_war_threshold number @if fog of war at position of this entity is greater than 'fog_of_war_threshold', this has  no effect [default: 200, range: [0, 255]]
+---@field is_enemy boolean @[default: 1, range: [0, 1]]
+---@field energy_lerp_up_speed_multiplier number @[default: 0, range: [0, 1]]
+---@class NinjaRopeComponent : Component
+---@field max_length number @[default: 356, range: [0, 2000]]
+---@field mLength number @[default: 0, range: [0, 2000]]
+---@field - table @(private) [default: ]
+---@class NullDamageComponent : Component
+---@field null_chance number @if less than 1, then will roll the die to see if it will NULL all damage. Stick this into your projectile entity [default: 1, range: [0, 1]]
+---@class OrbComponent : Component
+---@field orb_id number @must be unique for every orb in the world [default: 0, range: [0, 20]]
+---@class ParticleEmitterComponent : Component
+---@field emitted_material_name string @[default: blood, range: [0, 1]]
+---@field create_real_particles boolean @used to be emit_real_particles - creates these particles in the grid, if that happens velocity and lifetime are ignored [default: 0, range: [0, 1]]
+---@field emit_real_particles boolean @this creates particles that will behave like particles, but work outside of the screen [default: 0, range: [0, 1]]
+---@field emit_cosmetic_particles boolean @particle does have collisions, but no other physical interactions with the world. the particles are culled outside camera region [default: 0, range: [0, 1]]
+---@field cosmetic_force_create boolean @cosmetic particles are created inside grid cells [default: 1, range: [0, 1]]
+---@field render_back boolean @for cosmetic particles, if they are rendered on front or in the back... [default: 1, range: [0, 1]]
+---@field render_ultrabright boolean @if 1, particles made of a glowing material will be 3x as bright as usually [default: 0, range: [0, 1]]
+---@field collide_with_grid boolean @for cosmetic particles, if 1 the particles collide with grid and only exist in screen space [default: 1, range: [0, 1]]
+---@field collide_with_gas_and_fire boolean @does it collide with gas and fire, works with create_real_particles and raytraced images  [default: 1, range: [0, 1]]
+---@field particle_single_width boolean @for cosmetic particles, forces them (gas,fire) to be only 1 pixel wide  [default: 1, range: [0, 1]]
+---@field emit_only_if_there_is_space boolean @This is turned for potions after they take some damage and start leaking [default: 0, range: [0, 1]]
+---@field emitter_lifetime_frames number @emitter lifetime in frames. -1 = infinite [default: -1, range: [0, 1]]
+---@field fire_cells_dont_ignite_damagemodel boolean @if set, and fire cells are created, this changes their default behaviour of igniting DamageModels [default: 0, range: [0, 1]]
+---@field color_is_based_on_pos boolean @if true, will get the particle color based on the world position (instead of randomizing it) [default: 0, range: [0, 1]]
+---@field custom_alpha number @if >= 0, will use this as particle alpha [default: -1, range: [0, 1]]
+---@field x_pos_offset_min number @[default: 0, range: [-20, 20]]
+---@field y_pos_offset_min number @[default: 0, range: [-20, 20]]
+---@field x_pos_offset_max number @[default: 0, range: [-20, 20]]
+---@field y_pos_offset_max number @[default: 0, range: [-20, 20]]
+---@field area_circle_sector_degrees number @[default: 360, range: [0, 360]]
+---@field x_vel_min number @[default: 0, range: [-100, 100]]
+---@field x_vel_max number @[default: 0, range: [-100, 100]]
+---@field y_vel_min number @[default: 0, range: [-100, 100]]
+---@field y_vel_max number @[default: 0, range: [-100, 100]]
+---@field direction_random_deg number @[default: 0, range: [0, 90]]
+---@field velocity_always_away_from_center number @if set, will make the velocity's rotation always away from center of randomized aabb [default: 0, range: [-256, 256]]
+---@field lifetime_min number @[default: 5, range: [0, 10]]
+---@field lifetime_max number @[default: 10, range: [0, 10]]
+---@field airflow_force number @[default: 0, range: [0, 6]]
+---@field airflow_time number @[default: 1, range: [0, 2]]
+---@field airflow_scale number @[default: 1, range: [0, 2]]
+---@field friction number @[default: 0, range: [0, 10]]
+---@field attractor_force number @If > 0, an attractor is created at the position of the entity that owns this component [default: 0, range: [0, 100]]
+---@field emission_interval_min_frames number @[default: 5, range: [0, 120]]
+---@field emission_interval_max_frames number @[default: 10, range: [0, 120]]
+---@field emission_chance number @[default: 100, range: [0, 100]]
+---@field delay_frames number @if set will delay this many frames until starts [default: 0, range: [0, 1]]
+---@field is_emitting boolean @[default: 1, range: [0, 1]]
+---@field use_material_inventory boolean @if set, it'll use MaterialInventoryComponent as the source of the particles emitted [default: 0, range: [0, 1]]
+---@field is_trail boolean @if set, will do a trail based on the previous position and current position [default: 0, range: [0, 1]]
+---@field trail_gap number @if > 0, trail particles will be generated this far from each other between our old and new position, else [count_min-count_max] particles will be generated on the line [default: 0, range: [0, 1]]
+---@field render_on_grid boolean @if set, particle render positions will be snapped to cell grid [default: 0, range: [0, 1]]
+---@field fade_based_on_lifetime boolean @if set, particle's position in its lifetime will determine the rendering alpha [default: 0, range: [0, 1]]
+---@field draw_as_long boolean @if set, particle will rendered as a trail along it's movement vector [default: 0, range: [0, 1]]
+---@field b2_force number @if 0 nothing happens, if 1 will apply a force to the physics body (if has one), also requires that we use the material inventory [default: 0, range: [0, 10]]
+---@field set_magic_creation boolean @if set will set the magic creation 1 in the cells and do the white glow effect [default: 0, range: [0, 1]]
+---@field image_animation_file string @file to use for image-based animation
+---@field image_animation_colors_file string @file to use for image-based animation
+---@field image_animation_speed number @how long do we stay on one frame of image-based animation. 0.5 means two game frames per one animation frame. 2.0 means two animation frames per one game frame, and so on. 0 means we always emit at time 0 of the animation. [default: 1, range: [0, 255]]
+---@field image_animation_loop boolean @does image-based animation keep looping while this component is active? [default: 1, range: [0, 1]]
+---@field image_animation_phase number @the point in time [0,1] where the image-based animation will start the first cycle [default: 0, range: [0, 1]]
+---@field image_animation_emission_probability number @[0,1], probability of emitting image based particles is multiplied with this [default: 1, range: [0, 1]]
+---@field image_animation_raytrace_from_center boolean @enable this to disable image_animations (from the center) going through the world [default: 0, range: [0, 1]]
+---@field image_animation_use_entity_rotation boolean @if 1, image animation emission will be rotated based on entity rotation [default: 0, range: [0, 1]]
+---@field ignore_transform_updated_msg boolean @if 1, mExPosition and m_last_emit_position will not be updated when receiving Message_TransformUpdated [default: 0, range: [0, 1]]
+---@field mExPosition table @(private) is used with is_trail
+---@field mMaterialInventoryMax number @(private) this is how we figure out the pressure, when using material_inventory [default: 1024, range: [0, 1]]
+---@field m_material_id number @(private)
+---@field m_next_emit_frame number @(private) [default: 0, range: [0, 1]]
+---@field m_has_emitted boolean @(private) [default: 0, range: [0, 1]]
+---@field m_last_emit_position table @(private)
+---@field - table @(private) [default: ]
+---@field m_image_based_animation_time number @(private) [default: 0, range: [0, 1]]
+---@field m_collision_angles userdata @(private)
+---@field m_particle_attractor_id number @(private) [default: -1, range: [0, 1]]
+---@field color number @(custom type) [default: 0, range: [0, 1]]
+---@field offset table @(custom type)
+---@field area_circle_radius table @(custom type) If > 0, the particles will be emitted inside a circular area defined by the min and max bounds of 'area_circle_radius'.
+---@field gravity table @(custom type)
+---@field count_min number @(custom type)
+---@field count_max number @(custom type)
+---@field - integer @(custom type) NONE or FIRE [default: ]
+---@class PathFindingComponent : Component
+---@field search_depth_max_no_goal number @TODO: Comment [default: 20, range: [0, 1e+006]]
+---@field iterations_max_no_goal number @TODO: Comment [default: 1500, range: [0, 1e+006]]
+---@field search_depth_max_with_goal number @TODO: Comment [default: 2500, range: [0, 1e+006]]
+---@field iterations_max_with_goal number @TODO: Comment [default: 1500, range: [0, 1e+006]]
+---@field cost_of_flying number @TODO: Comment [default: 20, range: [0, 100000]]
+---@field distance_to_reach_node_x number @TODO: Comment [default: 2, range: [0, 200]]
+---@field distance_to_reach_node_y number @TODO: Comment [default: 6, range: [0, 200]]
+---@field frames_to_get_stuck number @TODO: Comment [default: 60, range: [0, 600]]
+---@field frames_between_searches number @TODO: Comment [default: 30, range: [0, 300]]
+---@field y_walking_compensation number @TODO: Comment [default: 0, range: [-100, 100]]
+---@field can_fly boolean @TODO: Comment [default: 1, range: [0, 1]]
+---@field can_walk boolean @TODO: Comment [default: 1, range: [0, 1]]
+---@field can_jump boolean @TODO: Comment [default: 0, range: [0, 1]]
+---@field can_dive boolean @TODO: Comment [default: 0, range: [0, 1]]
+---@field can_swim_on_surface boolean @TODO: Comment [default: 0, range: [0, 1]]
+---@field never_consider_line_of_sight boolean @if 1, we require a path to have an entity at the goal, having line of sight to the entity is not enough [default: 0, range: [0, 1]]
+---@field space_required number @how far (in cells) must a point on our route be from the nearest wall to consider it passable? [default: 0, range: [0, 20]]
+---@field max_jump_distance_from_camera number @TODO: Comment [default: 400, range: [0, 400]]
+---@field jump_speed number @TODO: Comment [default: 200, range: [0, 1000]]
+---@field initial_jump_lob number @TODO: Comment [default: 1, range: [0, 5]]
+---@field initial_jump_max_distance_x number @TODO: Comment [default: 100, range: [0, 1000]]
+---@field initial_jump_max_distance_y number @TODO: Comment [default: 80, range: [0, 1000]]
+---@field read_state number @Read only value to get mState as an integer. Used to detect when the worst cheesers are trying to cheese our beloved squidward. [default: 0, range: [0, 1]]
+---@field input table @(private) TODO: Comment
+---@field - table @(private) TODO: Comment [default: ]
+---@field waiting_for boolean @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field next_search_frame number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field path table @(private) TODO: Comment
+---@field path_next_node table @(private) TODO: Comment
+---@field path_next_node_vector_to table @(private) TODO: Comment
+---@field path_next_node_distance_to number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field path_previous_node table @(private) TODO: Comment
+---@field path_frames_stuck number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field path_is_stuck boolean @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field path_last_frame_with_job number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field mLogic userdata @(private) this defines what is an acceptable path
+---@field mFallbackLogic userdata @(private) we use this to define an acceptable path if mLogic doesn't return one
+---@field mSelectedLogic userdata @(private) TODO: Comment
+---@field mEnabled boolean @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field - integer @(private) TODO: Comment [default: ]
+---@field mTimesStuck number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field mNextClearDontApproachListFrame number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field mNodeProximityCheckCorrectionY number @(private) TODO: Comment [default: 0, range: [0, 1]]
+---@field debug_path table @(private) TODO: Comment
+---@field jump_velocity_multiplier number @(private) TODO: Comment
+---@field jump_trajectories table @(custom type) TODO: Comment
+---@class PathFindingGridMarkerComponent : Component
+---@field marker_work_flag number @[default: 0, range: [0, 255]]
+---@field marker_offset_x number @[default: 0, range: [-1000, 1000]]
+---@field marker_offset_y number @[default: 0, range: [-1000, 1000]]
+---@field player_marker_radius number @[default: 0, range: [0, 128]]
+---@field mNode table @(private) we change the work state of this node. thus we need to keep a reference to it
+---@class PhysicsAIComponent : Component
+---@field target_vec_max_len number @[default: 5, range: [0, 1]]
+---@field force_coeff number @[default: 30, range: [0, 1]]
+---@field force_balancing_coeff number @[default: 1.5, range: [0, 1]]
+---@field force_max number @[default: 100, range: [0, 1]]
+---@field torque_coeff number @[default: 50, range: [0, 1]]
+---@field torque_balancing_coeff number @[default: 0.2, range: [0, 1]]
+---@field torque_max number @[default: 50, range: [0, 1]]
+---@field torque_damaged_max number @[default: 100, range: [0, 1]]
+---@field torque_jump_random number @[default: 0, range: [0, 1]]
+---@field damage_deactivation_probability number @[default: 80, range: [0, 1]]
+---@field damage_deactivation_time_min number @[default: 30, range: [0, 1]]
+---@field damage_deactivation_time_max number @[default: 60, range: [0, 1]]
+---@field die_on_remaining_mass_percentage number @[default: 0.3, range: [0, 1]]
+---@field levitate boolean @[default: 1, range: [0, 1]]
+---@field v0_jump_logic boolean @[default: 1, range: [0, 1]]
+---@field v0_swim_logic boolean @[default: 1, range: [0, 1]]
+---@field v0_body_id_logic boolean @[default: 1, range: [0, 1]]
+---@field swim_check_y_min number @[default: -2, range: [0, 1]]
+---@field swim_check_y_max number @[default: 2, range: [0, 1]]
+---@field swim_check_side_x number @[default: 4, range: [0, 1]]
+---@field swim_check_side_y number @[default: -2, range: [0, 1]]
+---@field keep_inside_world boolean @fix to the bug in which the spiders spawned inside the holy mountain, if set will try not to go into places which aren't loaded  [default: 1, range: [0, 1]]
+---@field free_if_static boolean @set true for the boss, because box2d might turn this body into a static body, if it thinks it's glitching out.  [default: 0, range: [0, 1]]
+---@field rotation_speed number @(private) [default: 0, range: [0, 1]]
+---@field mStartingMass number @(private) [default: 1, range: [0, 1]]
+---@field mMainBodyFound boolean @(private) [default: 0, range: [0, 1]]
+---@field mNextFrameActive number @(private) [default: 0, range: [0, 1]]
+---@field mRotationTarget number @(private) [default: 0, range: [0, 1]]
+---@field mLastPositionWhenHadPath table @(private)
+---@field mHasLastPosition boolean @(private) [default: 0, range: [0, 1]]
+---@class PhysicsBody2Component : Component
+---@field mBodyId userdata @this is mBody->GetBodyId() - not to be confused with uid, has to be tracked separately, since the mBody pointer is not unique [default: 0, range: [0, 1]]
+---@field linear_damping number @[default: 0, range: [0, 1]]
+---@field angular_damping number @[default: 0, range: [0, 1]]
+---@field allow_sleep boolean @[default: 1, range: [0, 1]]
+---@field fixed_rotation boolean @[default: 0, range: [0, 1]]
+---@field is_bullet boolean @[default: 0, range: [0, 1]]
+---@field is_static boolean @[default: 0, range: [0, 1]]
+---@field buoyancy number @[default: 0.7, range: [0, 1]]
+---@field hax_fix_going_through_ground boolean @if 1, will lift the body upwards if it is inside ground [default: 0, range: [0, 1]]
+---@field hax_fix_going_through_sand boolean @hax_fix_going_through_ground has to be set, if set will lift the body upwards if it is inside sand [default: 0, range: [0, 1]]
+---@field hax_wait_till_pixel_scenes_loaded boolean @[default: 0, range: [0, 1]]
+---@field go_through_sand boolean @if 1, will go through sand PhysicsBridge::mGoThroughSand = 1 [default: 0, range: [0, 1]]
+---@field auto_clean boolean @if 1, the simulation might destroy this body if it's hidden under sand. Problematic if you have a small piece with joint attached to something like the wheels of minecart. Set to 0 in cases like that [default: 1, range: [0, 1]]
+---@field force_add_update_areas boolean @if 1, we will mark our predicted aabb as a box2d update area. [default: 1, range: [0, 1]]
+---@field update_entity_transform boolean @[default: 1, range: [0, 1]]
+---@field kill_entity_if_body_destroyed boolean @if 1, will kill the entity when physics body is destroyed [default: 1, range: [0, 1]]
+---@field kill_entity_after_initialized boolean @if 1, will destroy the entity after initialization has been done based the entity's PhysicsBodyComponents and JointComponents [default: 0, range: [0, 1]]
+---@field manual_init boolean @if 1, initialization occurs only when done via for example lua component and Physic2InitFromComponents() [default: 0, range: [0, 1]]
+---@field destroy_body_if_entity_destroyed boolean @if 1, root body is destroyed if the entity is destroyed [default: 0, range: [0, 1]]
+---@field root_offset_x number @TODO [default: 0, range: [0, 1]]
+---@field root_offset_y number @TODO [default: 0, range: [0, 1]]
+---@field init_offset_x number @TODO [default: 0, range: [0, 1]]
+---@field init_offset_y number @TODO [default: 0, range: [0, 1]]
+---@field mActiveState boolean @private variable, please don't mess around with this [default: 0, range: [0, 1]]
+---@field mPixelCountOrig number @the number of pixels the body had when it was originally created [default: 0, range: [0, 1]]
+---@field mBody userdata @(private)
+---@field mInitialized boolean @(private) private variable, please don't mess around with this [default: 0, range: [0, 1]]
+---@field mPixelCount number @(private) if set, tracks the number of csolidcells the body has [default: 0, range: [0, 1]]
+---@field mRefreshed boolean @(private) this is sure the bodies are only parsed once [default: 0, range: [0, 1]]
+---@field mLocalPosition table @(custom type) private variable, please don't mess around with this
+---@class PhysicsBodyCollisionDamageComponent : Component
+---@field speed_threshold number @[default: 60, range: [0, 100]]
+---@field damage_multiplier number @[default: 0.016667, range: [0, 1]]
+---@class PhysicsBodyComponent : Component
+---@field is_external boolean @if mBody is set from outside, will ignore all the things [default: 0, range: [0, 1]]
+---@field hax_fix_going_through_ground boolean @if set will lift the body upwards if it is inside ground [default: 0, range: [0, 1]]
+---@field hax_fix_going_through_sand boolean @hax_fix_going_through_ground has to be set, if set will lift the body upwards if it is inside sand [default: 0, range: [0, 1]]
+---@field hax_wait_till_pixel_scenes_loaded boolean @[default: 0, range: [0, 1]]
+---@field uid number @if the entity has multiple physics bodies and has specific shapes for those and possible joints, you should use this. 0 is default for shapes [default: 0, range: [0, 1000]]
+---@field is_enabled boolean @Use this to kill the physics body of. if is_enabled is set to false, will destroy the physics body [default: 1, range: [0, 1]]
+---@field linear_damping number @[default: 0, range: [0, 1]]
+---@field angular_damping number @[default: 0, range: [0, 1]]
+---@field allow_sleep boolean @[default: 1, range: [0, 1]]
+---@field fixed_rotation boolean @[default: 0, range: [0, 1]]
+---@field buoyancy number @[default: 0.7, range: [0, 1]]
+---@field gravity_scale_if_has_no_image_shapes number @[default: 1, range: [0, 1]]
+---@field is_bullet boolean @[default: 0, range: [0, 1]]
+---@field is_static boolean @[default: 0, range: [0, 1]]
+---@field is_kinematic boolean @[default: 0, range: [0, 1]]
+---@field is_character boolean @if it is a character, then we need to few interesting things from time to time [default: 0, range: [0, 1]]
+---@field go_through_sand boolean @if set, will go through sand PhysicsBridge::mGoThroughSand = 1 [default: 0, range: [0, 1]]
+---@field gridworld_box2d boolean @default is 1. You should only change this if you know the body isn't going to touch gridworld [default: 1, range: [0, 1]]
+---@field auto_clean boolean @if set, the simulation might destroy this body if it's hidden under sand. Problematic if you have a small piece with joint attached to something like the wheels of minecart. Set to 0 in cases like that [default: 1, range: [0, 1]]
+---@field on_death_leave_physics_body boolean @if set, will leave the b2body into the world, even if the entity is killed [default: 0, range: [0, 1]]
+---@field on_death_really_leave_body boolean @camera bound... god damn... we need something special when we want to leave the body [default: 0, range: [0, 1]]
+---@field update_entity_transform boolean @WARNING! Don't touch this unless you know what you're doing. If false, doesn't update the entitys transform to match the physics body. This is used with multi body entities, to use the correct body to update the entity, e.g. minecart [default: 1, range: [0, 1]]
+---@field force_add_update_areas boolean @if 1, we will mark our predicted aabb as a box2d update area. [default: 0, range: [0, 1]]
+---@field kills_entity boolean @if set, will kill the entity when physics body is destroyed [default: 1, range: [0, 1]]
+---@field projectiles_rotate_toward_velocity boolean @for physics projectiles, if true will initially rotate the body based on the velocity [default: 0, range: [0, 1]]
+---@field randomize_init_velocity boolean @randomizes the init velocity [default: 0, range: [0, 1]]
+---@field mActiveState boolean @private variable, please don't mess around with this [default: 0, range: [0, 1]]
+---@field mBody userdata @(private)
+---@field mBodyId userdata @(private) this is mBody->GetBodyId() - not to be confused with uid shit, has to be tracked separately, since the mBody pointer is not unique [default: 0, range: [0, 1]]
+---@field mPixelCount number @(private) if set, tracks the number of csolidcells the body has [default: 0, range: [0, 1]]
+---@field mLocalPosition userdata @(private)
+---@field mRefreshed boolean @(private) this is sure the bodies are only parsed once [default: 0, range: [0, 1]]
+---@field initial_velocity table @(custom type) if you want a velocity at the start, set it here
+---@class PhysicsImageShapeComponent : Component
+---@field is_root boolean @if 1, PhysicsBody2Component will use this to figure out where the entity is located [default: 0, range: [0, 1]]
+---@field body_id number @used to figure out which bodies are attached to each other when creating joints [default: 0, range: [0, 1000]]
+---@field use_sprite boolean @will try to find the SpriteComponent and use that [default: 0, range: [0, 1]]
+---@field is_circle boolean @tries to fit this into a circle, looks at bounding box of the pixels and sets the circle to the center of that with radius being the line from there to a straight edge [default: 0, range: [0, 1]]
+---@field centered boolean @if this is true, moves offset to be in the center of the image, overwrites the offset_x, offset_y [default: 0, range: [0, 1]]
+---@field offset_x number @offset x in pixels [default: 0, range: [0, 1]]
+---@field offset_y number @offset y in pixels [default: 0, range: [0, 1]]
+---@field z number @offset in the z direction [default: 0, range: [0, 1]]
+---@field image_file string @the png file from which the body is created from
+---@field mBody userdata @(private) used in joint creation phase
+---@field material number @(custom type) the material from which the body is created [default: 0, range: [0, 1]]
+---@class PhysicsJoint2Component : Component
+---@field joint_id number @Use this to create a relation between PhysicsJointMutator and a joint. The PhysicsJointMutator must exist when the physics objects are initialized for the first time. This id should be unique inside one entity. Defaults to 0 [default: 0, range: [0, 1000]]
+---@field break_force number @if > 0, will break if theres a force too strong. [default: 1.3, range: [0, 1]]
+---@field break_distance number @if > 0, will break if the anchors on the bodies get further than this. [default: 1.4142, range: [0, 1]]
+---@field break_on_body_modified boolean @if > 1, will break if an attached body is modified [default: 0, range: [0, 1]]
+---@field break_on_shear_angle_deg number @if > 0, will break if the angle between the linked bodies becomes greater than this [default: 0, range: [0, 1]]
+---@field body1_id number @[default: 0, range: [0, 1]]
+---@field body2_id number @[default: 0, range: [0, 1]]
+---@field offset_x number @[default: 0, range: [0, 1]]
+---@field offset_y number @[default: 0, range: [0, 1]]
+---@field ray_x number @[default: 0, range: [0, 1]]
+---@field ray_y number @[default: -10, range: [0, 1]]
+---@field surface_attachment_offset_x number @[default: 0, range: [0, 1]]
+---@field surface_attachment_offset_y number @[default: 2.5, range: [0, 1]]
+---@field type integer @(custom type) Enum - REVOLUTE_JOINT, WELD_JOINT, REVOLUTE_JOINT_ATTACH_TO_NEARBY_SURFACE or WELD_JOINT_ATTACH_TO_NEARBY_SURFACE
+---@class PhysicsJoint2MutatorComponent : Component
+---@field joint_id number @Use this to create a relation between PhysicsJointMutator and a joint created by PhysicsJoint2Component. The PhysicsJoint2Mutator must exist when the physics objects are initialized for the first time. [default: 0, range: [0, 1000]]
+---@field destroy boolean @if 1, the joint will break and this component will be destroyed. [default: 0, range: [0, 1]]
+---@field motor_speed number @if != 0 and this is linked to a revolute joint, the joint motor will be enabled at this speed [default: 0, range: [0, 1]]
+---@field motor_max_torque number @max torque for motor [default: 1, range: [0, 1]]
+---@field mBox2DJointId number @Private, don't touch this! Stores the joint's id in the physics engine. [default: 0, range: [0, 1]]
+---@field mPreviousMotorSpeed number @(private) [default: 0, range: [0, 1]]
+---@field mPreviousMotorMaxTorque number @(private) [default: 0, range: [0, 1]]
+---@class PhysicsJointComponent : Component
+---@field nail_to_wall boolean @[default: 0, range: [0, 1]]
+---@field grid_joint boolean @if 1, will do a grid joint that works correctly with a body when it is destroyed / chipped away [default: 0, range: [0, 1]]
+---@field breakable boolean @if 1, will break if theres a force too strong [default: 0, range: [0, 1]]
+---@field body1_id number @[default: 0, range: [0, 1]]
+---@field body2_id number @[default: 0, range: [0, 1]]
+---@field pos_x number @[default: 0, range: [0, 3.5]]
+---@field pos_y number @[default: 0, range: [0, 3.5]]
+---@field delta_x number @For mouse joint only ... moves the mouse joint by *dt  [default: 0, range: [-10, 10]]
+---@field delta_y number @For mouse joint only ... moves the mouse joint by *dt  [default: 0, range: [-10, 10]]
+---@field mMotorEnabled boolean @enable motor, by setting this to true [default: 0, range: [0, 1]]
+---@field mMotorSpeed number @if enabled this gets set to speed [default: 0, range: [0, 20]]
+---@field mMaxMotorTorque number @max torque for motor [default: 1, range: [0, 1]]
+---@field mJoint userdata @(private)
+---@field type integer @(custom type) Enum - JOINT_TYPE
+---@class PhysicsKeepInWorldComponent : Component
+---@field check_whole_aabb boolean @All that is needed is to include one of the components with PhysicsBodyComponent or PhysicsBody2Component and it will be frozen when it hits outer edges of the world. NOTE! This will override the auto_clean variable, auto_clean will be set to false. If this is true, will check all the 4 corners of the bounding box [default: 0, range: [0, 1]]
+---@field predict_aabb boolean @Will add the velocity * 1.5 to the aabb to predict where the body will end up at. This will greatly help keep the body inside simulated world. [default: 0, range: [0, 1]]
+---@field keep_at_last_valid_pos boolean @Will try to keep the object at the latest valid position [default: 0, range: [0, 1]]
+---@field mExPosition table @(private)
+---@field mExRotation number @(private) [default: 0, range: [0, 1]]
+---@class PhysicsPickUpComponent : Component
+---@field pick_up_strength number @[default: 200, range: [0, 1]]
+---@field isBroken boolean @(private) [default: 0, range: [0, 1]]
+---@field leftJointPos table @(private)
+---@field rightJointPos table @(private)
+---@field leftJoint userdata @(private)
+---@field rightJoint userdata @(private)
+---@field transform table @(custom type)
+---@field original_left_joint_pos table @(custom type)
+---@field original_right_joint_pos table @(custom type)
+---@class PhysicsRagdollComponent : Component
+---@field filename string @file that should include just a list of other files, that have all the parts
+---@field filenames string @a list of body parts as png images, separate the files by ','. e.g. 'data/temp/ragdoll/leg.png, data/temp/ragdoll/head.png,...'
+---@field offset_x number @offset of where the ragdoll will be created [default: 0, range: [0, 20]]
+---@field offset_y number @offset of where the ragdoll will be created [default: 0, range: [0, 20]]
+---@field bodies userdata @(private)
+---@class PhysicsShapeComponent : Component
+---@field recreate boolean @[default: 0, range: [0, 1]]
+---@field is_circle boolean @[default: 0, range: [0, 1]]
+---@field is_box boolean @[default: 1, range: [0, 1]]
+---@field is_capsule boolean @[default: 0, range: [0, 1]]
+---@field is_based_on_sprite boolean @if set, will use sprite component to figure out a box that fits this [default: 0, range: [0, 1]]
+---@field friction number @[default: 0.75, range: [0, 1]]
+---@field restitution number @[default: 0.1, range: [0, 1]]
+---@field density number @[default: 0.75, range: [0, 5]]
+---@field local_position_x number @[default: 0, range: [-5, 5]]
+---@field local_position_y number @[default: 0, range: [-5, 5]]
+---@field radius_x number @[default: 1, range: [0, 10]]
+---@field radius_y number @[default: 1, range: [0, 10]]
+---@field capsule_x_percent number @[default: 0.25, range: [0, 1]]
+---@field capsule_y_percent number @[default: 0.3, range: [0, 1]]
+---@field material number @(custom type) the material to use for collision audio [default: 0, range: [0, 1]]
+---@class PhysicsThrowableComponent : Component
+---@field throw_force_coeff number @[default: 1, range: [0, 2]]
+---@field max_throw_speed number @[default: 180, range: [0, 256]]
+---@field min_torque number @[default: 0.5, range: [0, 20]]
+---@field max_torque number @[default: 8, range: [0, 20]]
+---@field tip_check_offset_min number @[default: 3, range: [0, 20]]
+---@field tip_check_offset_max number @[default: 5, range: [0, 20]]
+---@field tip_check_random_rotation_deg number @[default: 9, range: [0, 180]]
+---@field attach_min_speed number @[default: 70, range: [0, 180]]
+---@field attach_to_surfaces_knife_style boolean @[default: 0, range: [0, 1]]
+---@field hp number @WIP WIP [default: 100, range: [0, 200]]
+---@field mHasJoint boolean @(private) [default: 0, range: [0, 1]]
+---@class PixelSceneComponent : Component
+---@field pixel_scene string @loads this pixel scene file
+---@field pixel_scene_visual string @this is the colors that get used for the pixels, if empty will use material colors
+---@field pixel_scene_background string @this is the background file that gets loaded, if empty won't do anything
+---@field background_z_index number @the standard z_index of pixel scene backgrounds [default: 50, range: [0, 1]]
+---@field offset_x number @how much off from the entity x,y will this be. Top left corner is where it loads the pixel scene [default: 0, range: [-30, 30]]
+---@field offset_y number @[default: 0, range: [-30, 30]]
+---@field skip_biome_checks boolean @biome check is on by default - it will check that pixel scene is loaded so that every corner is in the same biome [default: 0, range: [0, 1]]
+---@field skip_edge_textures boolean @if on - won't do the edge textures for the pixel scene [default: 0, range: [0, 1]]
+---@class PixelSpriteComponent : Component
+---@field image_file string @loads pixelsprite based on this file
+---@field anchor_x number @the anchor and center_offset [default: 0, range: [0, 3.5]]
+---@field anchor_y number @the anchor and center_offset [default: 0, range: [0, 3.5]]
+---@field material string @what's the material that things are made out of, TODO - change this into MetaCustom [default: wood_loose, range: [0, 1]]
+---@field diggable boolean @if 1, this can be broken with digger [default: 1, range: [0, 1]]
+---@field clean_overlapping_pixels boolean @cleans up the pixels that are ovelapping in the world [default: 1, range: [0, 1]]
+---@field kill_when_sprite_dies boolean @kills the entity, if the pixel sprite is dead (empty) [default: 1, range: [0, 1]]
+---@field create_box2d_bodies boolean @if true, will create new pixel sprites with box2d bodies, instead of gridworld cells [default: 0, range: [0, 1]]
+---@field mPixelSprite userdata @(custom type)
+---@class PlatformShooterPlayerComponent : Component
+---@field aiming_reticle_distance_from_character number @[default: 40, range: [0, 1000]]
+---@field camera_max_distance_from_character number @[default: 25, range: [0, 1000]]
+---@field alcohol_drunken_speed number @[default: 0.005, range: [0, 1000]]
+---@field blood_fungi_drunken_speed number @[default: 0.006, range: [0, 1000]]
+---@field blood_worm_drunken_speed number @[default: 0.006, range: [0, 1000]]
+---@field eating_cells_per_frame number @[default: 1, range: [0, 100]]
+---@field eating_probability number @[default: 5, range: [0, 100]]
+---@field eating_delay_frames number @[default: 30, range: [0, 100]]
+---@field stoned_speed number @[default: 0.1, range: [0, 1000]]
+---@field center_camera_on_this_entity boolean @[default: 1, range: [0, 1]]
+---@field move_camera_with_aim boolean @if true, moves camera with the aim. [default: 1, range: [0, 1]]
+---@field mSmoothedCameraPosition table @(private)
+---@field mSmoothedAimingVector table @(private)
+---@field mCameraRecoil number @(private) [default: 0, range: [0, 1]]
+---@field mCameraRecoilTarget number @(private) [default: 0, range: [0, 1]]
+---@field mCrouching boolean @(private) [default: 0, range: [0, 1]]
+---@field mCameraDistanceLerped number @(private) [default: 0, range: [0, 1]]
+---@field mRequireTriggerPull boolean @(private) [default: 0, range: [0, 1]]
+---@field mWarpDelay number @(private) [default: 0, range: [0, 1]]
+---@field mItemTemporarilyHidden number @(private) [default: 0, range: [0, 1]]
+---@field mDesiredCameraPos table @(private)
+---@field mHasGamepadControlsPrev boolean @(private) [default: 0, range: [0, 1]]
+---@field mForceFireOnNextUpdate boolean @(private) [default: 0, range: [0, 1]]
+---@field mFastMovementParticlesAlphaSmoothed number @(private) [default: 0, range: [0, 1]]
+---@field mTeleBoltFramesDuringLastSecond number @(private) [default: 0, range: [0, 1]]
+---@field mCamCorrectionTeleSmoothed number @(private) [default: 0, range: [0, 1]]
+---@field mCamCorrectionGainSmoothed table @(private)
+---@field mCameraErrorPrev table @(private)
+---@field mCamErrorAveraged table @(private)
+---@field mCamMovingFastPrev boolean @(private) [default: 0, range: [0, 1]]
+---@field mCamFrameStartedMovingFast number @(private) [default: 0, range: [0, 1]]
+---@field mCamFrameLastMovingFastExplosion number @(private) [default: 0, range: [0, 1]]
+---@field mCessationDo boolean @(private) [default: 0, range: [0, 1]]
+---@field mCessationLifetime number @(private) [default: 0, range: [0, 1]]
+---@field eating_area_min table @(custom type)
+---@field eating_area_max table @(custom type)
+---@class PlayerCollisionComponent : Component
+---@field getting_crushed_threshold number @[default: 5, range: [0, 100]]
+---@field moving_up_before_getting_crushed_threshold number @[default: 3, range: [0, 100]]
+---@field getting_crushed_counter number @(private) 1.12.2018 - Is this still used? [default: 0, range: [0, 1]]
+---@field stuck_in_ground_counter number @(private) used this mostly for player to figure out if it's stuck in ground [default: 0, range: [0, 1]]
+---@field DEBUG_stuck_in_static_ground number @(private) used to report error + also to free the player in case something horrible has gone wrong [default: 0, range: [0, 1]]
+---@field mCollidedHorizontally boolean @(private) [default: 0, range: [0, 1]]
+---@field mPhysicsCollisionHax userdata @(private) hax
+---@class PlayerStatsComponent : Component
+---@field lives number @[default: 1, range: [0, 1]]
+---@field max_hp number @[default: 4, range: [0, 1]]
+---@field speed number @[default: 1, range: [0, 1]]
+---@class PositionSeedComponent : Component
+---@field pos_x number @[default: 0, range: [0, 3.5]]
+---@field pos_y number @[default: 0, range: [0, 3.5]]
+---@class PotionComponent : Component
+---@field spray_velocity_coeff number @[default: 1, range: [0, 2]]
+---@field spray_velocity_normalized_min number @[default: 0.5, range: [0, 1]]
+---@field body_colored boolean @[default: 0, range: [0, 1]]
+---@field throw_bunch boolean @[default: 0, range: [0, 1]]
+---@field throw_how_many number @[default: 5, range: [0, 1]]
+---@field dont_spray_static_materials boolean @NOTE( Petri ): 15.8.2023 - if this is set to true, will only spray dynamic materials, that dont cause bugs (i.e. will not spray hard rock, box2d materials) [default: 0, range: [0, 1]]
+---@field dont_spray_just_leak_gas_materials boolean @NOTE( Petri ): 15.8.2023 - if this is set to true, will only leak gas materials instead of 'spraying' them. [default: 0, range: [0, 1]]
+---@field never_color boolean @Petri: body_colored didn't seem to work, so I added never_color. It can be set to true if you never want the potion to be colored [default: 0, range: [0, 1]]
+---@field custom_color_material number @(custom type) if set, will always use the color from this material [default: 0, range: [0, 1]]
+---@class PressurePlateComponent : Component
+---@field check_every_x_frames number @how often do we check the world [default: 30, range: [0, 1]]
+---@field state number @0 is up, 1 is down [default: 0, range: [0, 1]]
+---@field material_percent number @how much material should there be in the aabbs that we go down  [default: 0.75, range: [0, 1]]
+---@field mNextFrame number @(private) [default: 0, range: [0, 1]]
+---@field aabb_min table @(custom type)
+---@field aabb_max table @(custom type)
+---@class ProjectileComponent : Component
+---@field lifetime number @lifetime, -1 means it's endless, otherwise it's the frame count [default: -1, range: [0, 1]]
+---@field lifetime_randomness number @final lifetime will be lifetime + random(-lifetime_randomness,lifetime_randomness) [default: 0, range: [0, 1]]
+---@field on_lifetime_out_explode boolean @when lifetime runs out, should we explode? [default: 0, range: [0, 1]]
+---@field collide_with_world boolean @true by default. Some projectiles you don't want to collide with the world, e.g. blackholes [default: 1, range: [0, 1]]
+---@field speed_min number @[default: 60, range: [0, 60000]]
+---@field speed_max number @[default: 60, range: [0, 60000]]
+---@field friction number @[default: 0, range: [0, 60000]]
+---@field direction_random_rad number @when fired, randomizes the velocity -this, this [default: 0, range: [0, 3.14151]]
+---@field direction_nonrandom_rad number @when fired, multiplies this with projectile_i and adds it to direction [default: 0, range: [-3.14, 3.14]]
+---@field lob_min number @[default: 0.5, range: [0, 60000]]
+---@field lob_max number @[default: 0.8, range: [0, 60000]]
+---@field camera_shake_when_shot number @[default: 0, range: [0, 60000]]
+---@field shoot_light_flash_radius number @[default: 0, range: [0, 60000]]
+---@field int table @[default: shoot_light_flash_r                                             255, range: [0, 255]]
+---@field int table @[default: shoot_light_flash_g                                             180, range: [0, 255]]
+---@field int table @[default: shoot_light_flash_b                                             150, range: [0, 255]]
+---@field create_shell_casing boolean @should we create shell casings? [default: 0, range: [0, 1]]
+---@field shell_casing_material string @material of the shell casing [default: brass, range: [0, 1]]
+---@field muzzle_flash_file string @this entity is created along with the projectile, oriented along the projectile's path
+---@field bounces_left number @[default: 0, range: [0, 1e+008]]
+---@field bounce_energy number @when bouncing, velocity is multiplied by this [default: 0.5, range: [0, 1]]
+---@field bounce_always boolean @if true, will do a fake bounce if can't do the proper bounce, but will always try to bounce [default: 0, range: [0, 1]]
+---@field bounce_at_any_angle boolean @if true, will bounce at any reflection angle [default: 0, range: [0, 1]]
+---@field attach_to_parent_trigger boolean @if true, will attach to the projectile entity that created this projectile via a trigger [default: 0, range: [0, 1]]
+---@field bounce_fx_file string @this entity is created at the bounce position. it gets the bounce angle as rotation.
+---@field angular_velocity number @this is only applied if velocity_sets_rotation == false [default: 0, range: [-3.1415, 3.1415]]
+---@field velocity_sets_rotation boolean @whether we set the rotation based on velocity, as in spear or if we update the rotation with angular_velocity [default: 1, range: [0, 1]]
+---@field velocity_sets_scale boolean @if true, the sprite width is made equal to the distance traveled since last frame [default: 0, range: [0, 1]]
+---@field velocity_sets_scale_coeff number @Larger value means velocity affects the scale more [default: 1, range: [0, 1]]
+---@field velocity_sets_y_flip boolean @if true, the sprite is flipped based on which side the projectile is currently traveling [default: 0, range: [0, 1]]
+---@field velocity_updates_animation number @updates the animation based on far the sprite moved [default: 0, range: [0, 1]]
+---@field ground_penetration_coeff number @if > 0, this, along with VelocityComponent.mass affects how far we penetrate in materials [default: 0, range: [0, 5]]
+---@field ground_penetration_max_durability_to_destroy number @if 0, will not penetrate into materials with durability greater than this [default: 0, range: [0, 1]]
+---@field go_through_this_material string @if set, we never collide with this material
+---@field do_moveto_update boolean @this should probably be true, to get normal projectile behaviour, but you might want to disable this for some physics-based projectiles, like bombs [default: 1, range: [0, 1]]
+---@field on_death_duplicate_remaining number @if greater than 0, the projectile creates two clones of itself on death. 'on_death_duplicate_remaining' on the clones is reduced by one [default: 0, range: [0, 1]]
+---@field on_death_gfx_leave_sprite boolean @if true, finds all the sprites and leaves as sand cells into the grid [default: 1, range: [0, 1]]
+---@field on_death_explode boolean @if true, does explosion with config_explosion [default: 0, range: [0, 1]]
+---@field on_death_emit_particle boolean @if true, emits on_death_emit_particle_type on death [default: 0, range: [0, 1]]
+---@field on_death_emit_particle_count number @how many particles should we emit [default: 1, range: [0, 1]]
+---@field die_on_liquid_collision boolean @if true, dies on collision with liquids [default: 0, range: [0, 1]]
+---@field die_on_low_velocity boolean @if true, dies when speed goes below die_on_low_velocity_limit [default: 0, range: [0, 1]]
+---@field die_on_low_velocity_limit number @please see die_on_low_velocity [default: 50, range: [0, 1]]
+---@field on_death_emit_particle_type string
+---@field on_death_particle_check_concrete boolean @if you want it to stick as concrete, you should enable this [default: 0, range: [0, 1]]
+---@field ground_collision_fx boolean @if 1, spurt some particles when colliding with mortals [default: 1, range: [0, 1]]
+---@field explosion_dont_damage_shooter boolean @if true, explosion doesn't damage the entity who shot this [default: 0, range: [0, 1]]
+---@field on_death_item_pickable_radius number @if > 0, makes items closer than this radius pickable on death [default: 0, range: [0, 1]]
+---@field penetrate_world boolean @if true, the projectile doesn't collide with ground, liquids, physical objects etc [default: 0, range: [0, 1]]
+---@field penetrate_world_velocity_coeff number @if 'penetrate_world' is true, the projectile moves with a velocity multiplied by this value when inside world [default: 0.6, range: [0, 1]]
+---@field penetrate_entities boolean @if true, the projectile doesn't stop when it collides with entities. damages each entity only once [default: 0, range: [0, 1]]
+---@field on_collision_die boolean @if true, this is killed as soon as it hits the ground [default: 1, range: [0, 1]]
+---@field on_collision_remove_projectile boolean @if true, ProjectileComponent is removed from the entitiy [default: 0, range: [0, 1]]
+---@field on_collision_spawn_entity boolean @if true, spawns the spawn_entity [default: 1, range: [0, 1]]
+---@field spawn_entity string @this is spawned if hit something an on_collision_spawn_entity = 1
+---@field spawn_entity_is_projectile boolean @if true, will use ShootProjectile instead of LoadEntity() [default: 0, range: [0, 1]]
+---@field physics_impulse_coeff number @projectile applies an impulse to physics bodies it hits. Impulse = physics_impulse_coeff * velocity [default: 300, range: [0, 1]]
+---@field damage_every_x_frames number @if set != -1, will only do damage every x frames, used for fields and such, which would otherwise do damage every frame [default: -1, range: [0, 1]]
+---@field damage_scaled_by_speed boolean @if 1, damage is multiplied by (projectile speed / original projectile speed) ratio [default: 0, range: [0, 1]]
+---@field damage_scale_max_speed number @if > 0 and damage_scaled_by_speed = 1, will use this instead of mInitialSpeed when calculating the damage [default: 0, range: [0, 1]]
+---@field collide_with_entities boolean @if 1, looks for entities with tag, collide_with_tag and collides with them, giving them damage [default: 1, range: [0, 1]]
+---@field collide_with_tag string @default: mortal, if you needed can be changed to something more specific [default: hittable, range: [0, 1]]
+---@field dont_collide_with_tag string @if set will ignore entities with this tag
+---@field collide_with_shooter_frames number @remember friendly_fire 1, if -1 won't collide with shooter at all, otherwise uses the value as frame count and while it's running won't damage the shooter  [default: -1, range: [0, 1]]
+---@field friendly_fire boolean @if true, will damage same herd id [default: 0, range: [0, 1]]
+---@field damage number @how much Projectile damage does this do when it hits something [default: 1, range: [0, 1]]
+---@field knockback_force number @How far do entities get thrown if a knockback occurs. final_knockback = ProjectileComponent.knockback_force * VelocityComponent.mVelocity * VelocityComponent.mass / who_we_hit.mass [default: 0, range: [0, 1]]
+---@field ragdoll_force_multiplier number @velocity * ragdoll_force_multiplier is applied to any ragdolls that are created by entities killed by this [default: 0.025, range: [0, 1]]
+---@field hit_particle_force_multiplier number @hit particle velocity = projectile_velocity * hit_particle_force_multiplier * some randomness [default: 0.1, range: [0, 1]]
+---@field blood_count_multiplier number @how much blood does this projectile cause [default: 1, range: [0, 1]]
+---@field damage_game_effect_entities string @a list of game_effects entities separated with ','. e.g. 'data/entities/misc/effect_electrocution.xml,data/entities/misc/effect_on_fire.xml' 
+---@field never_hit_player boolean @If 1, does not hit player no matter what herds this and player belong to [default: 0, range: [0, 1]]
+---@field collect_materials_to_shooter boolean @if 1, looks up the 'who_shot' entity and its MaterialInventoryComponent on destruction and updates it based on the cells destroyed on our explosion. [default: 0, range: [0, 1]]
+---@field play_damage_sounds boolean @[default: 1, range: [0, 1]]
+---@field mLastFrameDamaged number @[default: -1024, range: [0, 1]]
+---@field mWhoShot number @(private) entity (creature) that shot this [default: 0, range: [0, 1]]
+---@field mWhoShotEntityTypeID number @(private) used for stats [default: 0, range: [0, 1]]
+---@field mShooterHerdId number @(private) the herdid of mWhoShot, unless friendly fire [default: 0, range: [0, 1]]
+---@field mStartingLifetime number @(private) [default: 0, range: [0, 1]]
+---@field mEntityThatShot number @(private) for triggers, if shot from a trigger this should point to the projectile entity that shot this. Otherwise this should be the same as mWhoShot. NOTE! Not really tested properly so might break. [default: 0, range: [0, 1]]
+---@field mTriggers table @(private)
+---@field mDamagedEntities table @(private)
+---@field mInitialSpeed number @(private) [default: -1, range: [0, 1]]
+---@field config table @(object)
+---@field config_explosion table @(object) if we have explosion, it's the setup for it
+---@field damage_by_type table @(object) the amounts of different types of damage this does
+---@field damage_critical table @(object) config for critical hit
+---@field projectile_type integer @(custom type)
+---@field shell_casing_offset table @(custom type) where the shell casing will be created relative to projectile, y is flipped if projectile direction is to the left.
+---@field ragdoll_fx_on_collision integer @(custom type) if not NORMAL, do a special ragdoll
+---@class RotateTowardsComponent : Component
+---@field entity_with_tag string @will rotate this entity towards the closest entity with tag [default: player_unit, range: [0, 1]]
+---@class SetLightAlphaFromVelocityComponent : Component
+---@field max_velocity number @[default: 50, range: [1, 150]]
+---@field mPrevPosition table @(private)
+---@class ShotEffectComponent : Component
+---@field extra_modifier string @name of modifier function executed per projectile from 'gun_extra_modifiers.lua'
+---@field condition_effect integer @(custom type) Shooting entity needs to have this 'GAME_EFFECT' for effects to apply. If both 'condition_effect' and 'condition_status' are set, they are combined with AND logic
+---@field condition_status table @(custom type) Shooting entity needs to have this 'STATUS_EFFECT' for effects to apply [default: 0, range: [0, 1]]
+---@class SimplePhysicsComponent : Component
+---@field can_go_up boolean @if set, will not try to move this upwards [default: 1, range: [0, 1]]
+---@field mOldPosition table @(private) used for box2d simple physics
+---@class SineWaveComponent : Component
+---@field sinewave_freq number @sinewave_m * sinf( sinewave_freq * lifetime++) [default: 1, range: [0, 1]]
+---@field sinewave_m number @sinewave_m * sinf( sinewave_freq * lifetime++) [default: 0.6, range: [0, 1]]
+---@field lifetime number @-1 seems to fix some problems with this... sinewave_m * sinf( sinewave_freq * lifetime++) [default: -1, range: [0, 1]]
+---@class SpriteAnimatorComponent : Component
+---@field target_sprite_comp_name string @[default: character, range: [0, 1]]
+---@field rotate_to_surface_normal boolean @[default: 0, range: [0, 1]]
+---@field mStates table @(private)
+---@field mCachedTargetSpriteTag table @(private)
+---@field mSendOnFinishedMessageName string @(private)
+---@class SpriteComponent : Component
+---@field image_file string @[default: data/temp/temp_gun.png, range: [0, 1]]
+---@field ui_is_parent boolean @Adds this to the GG.GetUISprite() as a child, instead of the mSpriteContainer [default: 0, range: [0, 1]]
+---@field is_text_sprite boolean @if you want to load a text sprite, set this to true and image_file to a font file [default: 0, range: [0, 1]]
+---@field offset_x number @[default: 0, range: [-24, 24]]
+---@field offset_y number @[default: 0, range: [-24, 24]]
+---@field alpha number @[default: 1, range: [0, 1]]
+---@field visible boolean @[default: 1, range: [0, 1]]
+---@field emissive boolean @[default: 0, range: [0, 1]]
+---@field additive boolean @[default: 0, range: [0, 1]]
+---@field fog_of_war_hole boolean @if 1, the alpha channel of this texture punctures a hole in the fog of war [default: 0, range: [0, 1]]
+---@field smooth_filtering boolean @[default: 0, range: [0, 1]]
+---@field rect_animation string
+---@field next_rect_animation string
+---@field text string
+---@field z_index number @0 = world grid, -1 = enemies, -1.5 = items in world, player = 0.6 [default: 1, range: [-256, 256]]
+---@field update_transform boolean @[default: 1, range: [0, 1]]
+---@field update_transform_rotation boolean @[default: 1, range: [0, 1]]
+---@field kill_entity_after_finished boolean @[default: 0, range: [0, 1]]
+---@field has_special_scale boolean @if this is set, sets special_scale_x and _y to scale [default: 0, range: [0, 1]]
+---@field special_scale_x number @this overrides the scale of the entity, if has_special_scale [default: 1, range: [0, 1]]
+---@field special_scale_y number @this overrides the scale of the entity, if has_special_scale [default: 1, range: [0, 1]]
+---@field never_ragdollify_on_death boolean @[default: 0, range: [0, 1]]
+---@field mSprite userdata @(private)
+---@field mRenderList userdata @(private)
+---@field mRenderListHandle number @(private) [default: -1, range: [0, 1]]
+---@field transform_offset table @(custom type)
+---@field offset_animator_offset table @(custom type) used by SpriteOffsetAnimator
+---@class SpriteOffsetAnimatorComponent : Component
+---@field x_amount number @[default: 0, range: [0, 5]]
+---@field x_speed number @[default: 0, range: [0, 5]]
+---@field y_amount number @[default: 2, range: [0, 5]]
+---@field y_speed number @[default: 2, range: [0, 5]]
+---@field sprite_id number @[default: 0, range: [0, 8]]
+---@field x_phase number @[default: 16, range: [0, 32]]
+---@field x_phase_offset number @[default: 0, range: [0, 1]]
+---@class SpriteParticleEmitterComponent : Component
+---@field sprite_file string @filepath to the sprite(s), supports the $[0-3] syntax
+---@field sprite_centered boolean @sets the offset to the center of the image [default: 0, range: [0, 1]]
+---@field sprite_random_rotation boolean @rotates the sprite randomly in 90 degree angles [default: 0, range: [0, 1]]
+---@field render_back boolean @if true, will set this particle to be behind entities (won't emit light) [default: 0, range: [0, 1]]
+---@field delay number @delay in seconds... [default: 0, range: [0, 1]]
+---@field lifetime number @lifetime in seconds... [default: 0, range: [0, 1]]
+---@field additive boolean @if 1, the sprites will be rendered using additive blending [default: 0, range: [0, 1]]
+---@field emissive boolean @if 1, the sprites will be rendered onto the emissive render target [default: 0, range: [0, 1]]
+---@field velocity_slowdown number @what percent of the velocity is slowed by *dt [default: 0, range: [0, 1]]
+---@field rotation number @original rotation in rads [default: 0, range: [0, 1]]
+---@field angular_velocity number @how much rotation there is in a second [default: 0, range: [0, 1]]
+---@field use_velocity_as_rotation boolean @do we rotate the sprite based on the velocity [default: 0, range: [0, 1]]
+---@field use_rotation_from_velocity_component boolean @if set, will set the initial rotation based on the velocity component's velocity [default: 0, range: [0, 1]]
+---@field use_rotation_from_entity boolean @if set, will 'inherit' rotation from the entity [default: 0, range: [0, 1]]
+---@field entity_velocity_multiplier number @0 = doesn't use the velocity from spawning entity at all, 1 = uses all [default: 0, range: [0, 1]]
+---@field z_index number @Depth of created particles [default: 0, range: [0, 1]]
+---@field randomize_position_inside_hitbox boolean @if set, will randomize position inside the hitbox aabb [default: 0, range: [0, 1]]
+---@field velocity_always_away_from_center boolean @if set, will make the velocity's rotation always away from center of randomized aabb [default: 0, range: [0, 1]]
+---@field camera_bound boolean @if true, will be culled if not near the camera [default: 1, range: [0, 1]]
+---@field camera_distance number @if the distance from camera (edges) is higher than this, this will be culled [default: 75, range: [0, 1]]
+---@field is_emitting boolean @disable this from emitting... [default: 1, range: [0, 1]]
+---@field count_min number @how many particles do we spawn at one time [default: 0, range: [0, 1]]
+---@field count_max number @how many particles do we spawn at one time [default: 1, range: [0, 1]]
+---@field emission_interval_min_frames number @how often do we emit particles [default: 5, range: [0, 200]]
+---@field emission_interval_max_frames number @how often do we emit particles [default: 10, range: [0, 200]]
+---@field entity_file string @if set, this entity is loaded to the emission position by the emitter when it emits
+---@field mNextEmitFrame number @(private) [default: 0, range: [0, 1]]
+---@field color table @(custom type) original color
+---@field color_change table @(custom type) how much the color changes in a second
+---@field velocity table @(custom type) original velocity
+---@field gravity table @(custom type) gravity
+---@field scale table @(custom type) original scale
+---@field scale_velocity table @(custom type) scale velocity per second
+---@field randomize_lifetime table @(custom type) this is added to the lifetime
+---@field randomize_position table @(custom type) random offset for pos
+---@field randomize_velocity table @(custom type) add this randomized velocity inside this o the velocity
+---@field randomize_scale table @(custom type) add this randomized vector2 to scale
+---@field randomize_rotation table @(custom type) this is added to the rotation 
+---@field randomize_angular_velocity table @(custom type) this is added to angular_velocity
+---@field randomize_alpha table @(custom type) this is added to the alpha
+---@field randomize_animation_speed_coeff table @(custom type) if set, animation speed is multiplied by a random value inside this range
+---@field expand_randomize_position table @(custom type) will add dt*this to randomize_position_aabb every frame
+---@class SpriteStainsComponent : Component
+---@field sprite_id number @which sprite (in the order in which they appear in the entity) are we going to stain? [default: 0, range: [0, 10]]
+---@field fade_stains_towards_srite_top boolean @if 1, shades get less opaque near the top of the sprite [default: 1, range: [0, 1]]
+---@field mTextureHandle table @(private)
+---@field mState table @(private)
+---@field stain_shaken_drop_chance_multiplier number @(custom type) how quickly stains are dropped relative to normal drop speed
+---@field mData userdata @(custom type)
+---@class StreamingKeepAliveComponent : Component
+---@field TEMP_TEMPY number @[default: 0, range: [0, 3.5]]
+---@field TEMP_TEMP_TEMP number @[default: 0, range: [0, 3.5]]
+---@class TelekinesisComponent : Component
+---@field min_size number @Minimum size of physics body that can be grabbed, in cells/pixels [default: 7, range: [0, 1]]
+---@field max_size number @Maximum size of physics body that can be grabbed, in cells/pixels [default: 1500, range: [0, 1]]
+---@field radius number @Maximum object search distance [default: 250, range: [0, 300]]
+---@field throw_speed number @Affects object speed when it is thrown [default: 25, range: [0, 300]]
+---@field target_distance number @Affects how far objects float from owner when held. Object size will also affect the floating distance. [default: 6, range: [0, 30]]
+---@field kick_to_use boolean @If 1, telekinesis interaction will occur when kick input is detected in root entity's ControlsComponent [default: 1, range: [0, 1]]
+---@field mState number @[default: 0, range: [0, 1]]
+---@field mBodyID number @[default: 0, range: [0, 1]]
+---@field mStartBodyMaxExtent number @[default: 0, range: [0, 1]]
+---@field mStartAimAngle number @[default: 0, range: [0, 1]]
+---@field mStartBodyAngle number @[default: 0, range: [0, 1]]
+---@field mStartBodyDistance number @[default: 0, range: [0, 1]]
+---@field mStartTime number @[default: 0, range: [0, 1]]
+---@field mMinBodyDistance number @[default: 3.40282e+038, range: [0, 1]]
+---@field mInteract boolean @If set to true, telekinesis interaction will occur. Will automatically turn to false at the end of component update. [default: 0, range: [0, 1]]
+---@class TeleportComponent : Component
+---@field target_x_is_absolute_position boolean @If set, target position x is in world coordinates, otherwise it's an offset [default: 0, range: [0, 1]]
+---@field target_y_is_absolute_position boolean @If set, target position y is in world coordinates, otherwise it's an offset [default: 0, range: [0, 1]]
+---@field source_particle_fx_file string @This entity is loaded at the source position when teleportation occurs [default: data/entities/particles/teleportation_source.xml, range: [0, 1]]
+---@field target_particle_fx_file string @This entity is loaded at the target position when teleportation occurs [default: data/entities/particles/teleportation_target.xml, range: [0, 1]]
+---@field load_collapse_entity boolean @if we don't want things to collapse after the teleport [default: 1, range: [0, 1]]
+---@field safety_counter number @(private) used to keep track that we're not stuck in waiting for a pixel scene to load, that is not going to be loaded [default: 0, range: [0, 1]]
+---@field teleported_entities table @(private)
+---@field source_location_camera_aabb table @(private)
+---@field target table @(custom type) Where should we teleport
+---@class TeleportProjectileComponent : Component
+---@field min_distance_from_wall number @[default: 16, range: [0, 16]]
+---@field actionable_lifetime number @[default: 3, range: [0, 20]]
+---@field reset_shooter_y_vel boolean @If 1, will set shooter y velocity to 0 on teleport [default: 1, range: [0, 1]]
+---@field mWhoShot number @(private) [default: 0, range: [0, 1]]
+---@class TextLogComponent : Component
+---@field key string
+---@field image_filename string
+---@field mCachedName string @(private)
+---@class TorchComponent : Component
+---@field probability_of_ignition_attempt number @how likely are we to ignite colliding cells [default: 15, range: [0, 100]]
+---@field suffocation_check_offset_y number @check offset in world coordinates from our position [default: -2, range: [-10, 10]]
+---@field frames_suffocated_to_extinguish number @how many frames the torch needs to be suffocated before it stops emitting fire [default: 5, range: [0, 30]]
+---@field extinguishable boolean @if 1, the torch needs to be re-ignited in case it is turned off [default: 1, range: [0, 1]]
+---@field fire_audio_weight number @how loud is the sound of our fire? 0 = no sound [default: 0, range: [0, 2]]
+---@field mFlickerOffset number @(private) [default: 0, range: [0, 1]]
+---@field mFramesSuffocated number @(private) [default: 0, range: [0, 1]]
+---@field mIsOn boolean @(private) [default: 1, range: [0, 1]]
+---@field mFireIsBurningPrev boolean @(private) [default: 0, range: [0, 1]]
+---@class UIIconComponent : Component
+---@field icon_sprite_file string
+---@field name string
+---@field description string
+---@field display_above_head boolean @[default: 0, range: [0, 1]]
+---@field display_in_hud boolean @[default: 1, range: [0, 1]]
+---@field is_perk boolean @[default: 1, range: [0, 1]]
+---@class UIInfoComponent : Component
+---@field name string
+---@class VariableStorageComponent : Component
+---@field name string
+---@field value_string string
+---@field value_int number @[default: 0, range: [0, 1]]
+---@field value_bool boolean @[default: 0, range: [0, 1]]
+---@field value_float number @[default: 0, range: [0, 1]]
+---@class VelocityComponent : Component
+---@field gravity_x number @[default: 0, range: [0, 1]]
+---@field gravity_y number @[default: 400, range: [0, 1]]
+---@field mass number @[default: 0.05, range: [0, 10]]
+---@field air_friction number @[default: 0.55, range: [0, 1]]
+---@field terminal_velocity number @[default: 1000, range: [0, 1]]
+---@field apply_terminal_velocity boolean @[default: 1, range: [0, 1]]
+---@field updates_velocity boolean @[default: 1, range: [0, 1]]
+---@field displace_liquid boolean @[default: 1, range: [0, 1]]
+---@field affect_physics_bodies boolean @if true, will move the physics body by the difference of mVelocity to the previous frame [default: 0, range: [0, 1]]
+---@field limit_to_max_velocity boolean @if true will limit the velocity to 61440. You can turn this off, but it's not recommended, since there are some nasty bugs that can happen with extremely high velocities. [default: 1, range: [0, 1]]
+---@field liquid_death_threshold number @if > 0, entity will die if liquid hit count is greater than this. [default: 0, range: [0, 1]]
+---@field liquid_drag number @1 = slows down in liquid, 0 = doesn't slow down at all [default: 1, range: [0, 1]]
+---@field mPrevVelocity table @(private) used to update physics bodies
+---@field mLatestLiquidHitCount number @(private) [default: 0, range: [0, 1]]
+---@field mAverageLiquidHitCount number @(private) [default: 0, range: [0, 1]]
+---@field mPrevPosition table @(private)
+---@field mVelocity table @(custom type)
+---@class VerletPhysicsComponent : Component
+---@field num_points number @[default: 2, range: [0, 1]]
+---@field num_links number @[default: 2, range: [0, 1]]
+---@field width number @[default: 1, range: [0, 1]]
+---@field resting_distance number @[default: 2, range: [0, 16]]
+---@field mass_min number @[default: 0.8, range: [0.03, 2]]
+---@field mass_max number @[default: 1, range: [0.03, 2]]
+---@field stiffness number @[default: 1, range: [0, 1]]
+---@field velocity_dampening number @[default: 0.99, range: [0.2, 1]]
+---@field liquid_damping number @how much we dampen when in liquid [default: 0.7, range: [0, 1]]
+---@field gets_entity_velocity_coeff number @[default: 0, range: [0, 10]]
+---@field collide_with_cells boolean @[default: 1, range: [0, 1]]
+---@field simulate_gravity boolean @[default: 1, range: [0, 1]]
+---@field simulate_wind boolean @[default: 1, range: [0, 1]]
+---@field wind_change_speed number @[default: 1, range: [0, 1]]
+---@field constrain_stretching boolean @[default: 0, range: [0, 1]]
+---@field pixelate_sprite_transforms boolean @[default: 1, range: [0, 1]]
+---@field scale_sprite_x boolean @[default: 1, range: [0, 1]]
+---@field follow_entity_transform boolean @[default: 1, range: [0, 1]]
+---@field animation_amount number @[default: 2, range: [0, 1]]
+---@field animation_speed number @[default: 5, range: [0, 1]]
+---@field animation_energy number @[default: 0.6, range: [0, 1]]
+---@field cloth_sprite_z_index number @[default: 1, range: [0, 1]]
+---@field stain_cells_probability number @0 = never, 1 = most likely, 10 = less likely - and so on [default: 0, range: [0, 1]]
+---@field m_is_culled_previous boolean @Developer note: this needs to be serialized in case we serialize SpriteComponent.is_visible [default: 0, range: [0, 1]]
+---@field masses table @(private)
+---@field positions table @(private)
+---@field positions_prev table @(private)
+---@field velocities table @(private)
+---@field dampenings table @(private)
+---@field freedoms table @(private)
+---@field links table @(private)
+---@field sprite userdata @(private)
+---@field type integer @(custom type)
+---@field animation_target_offset table @(custom type)
+---@field cloth_color_edge number @(custom type) [default: 4288376730, range: [0, 1]]
+---@field cloth_color number @(custom type) [default: 4286534774, range: [0, 1]]
+---@field m_position_previous table @(custom type)
+---@field colors table @(custom type)
+---@field materials table @(custom type)
+---@class VerletWeaponComponent : Component
+---@field damage_radius number @[default: 5, range: [0, 10]]
+---@field physics_force_radius number @[default: 3, range: [0, 10]]
+---@field damage_min_step number @[default: 0.01, range: [0, 3.5]]
+---@field damage_max number @[default: 1, range: [0, 3.5]]
+---@field damage_coeff number @[default: 1, range: [0, 3.5]]
+---@field impulse_coeff number @[default: 1, range: [0, 3.5]]
+---@field fade_duration_frames number @[default: 10, range: [0, 100]]
+---@field physics_impulse_coeff number @[default: 1, range: [0, 3.5]]
+---@field mPlayerCooldownEnd number @(private) [default: -1, range: [0, 1]]
+---@class VerletWorldJointComponent : Component
+---@field verlet_point_index number @Index of the verlet point we attach [default: 0, range: [0, 32]]
+---@field mUpdated boolean @(private) [default: 0, range: [0, 1]]
+---@field mCell userdata @(private)
+---@field world_position table @(custom type) Where we attach the verlet point
+---@class WalletComponent : Component
+---@field money number @[default: 0, range: [0, 10000]]
+---@field money_spent number @tracks how much money the player has spent [default: 0, range: [0, 1]]
+---@field mMoneyPrevFrame number @HAX to give player towards infinite moneys [default: 0, range: [0, 1]]
+---@field mHasReachedInf boolean @once it hits this value... keep it there [default: 0, range: [0, 1]]
+---@class WalletValuableComponent : Component
+---@field money_value number @[default: 10, range: [0, 100]]
+---@class WorldStateComponent : Component
+---@field is_initialized boolean @[default: 0, range: [0, 1]]
+---@field time number @[default: 0, range: [0, 1]]
+---@field time_total number @[default: 0, range: [0, 1000]]
+---@field time_dt number @to make the time go really fast or slow? [default: 1, range: [0, 1000]]
+---@field day_count number @[default: 0, range: [0, 3.5]]
+---@field rain number @should be called clouds, controls amount of cloud cover in the sky [default: 0, range: [0, 1]]
+---@field rain_target number @should be called clouds_target, controls amount of cloud cover in the sky [default: 0, range: [0, 1]]
+---@field fog number @[default: 0, range: [0, 1]]
+---@field fog_target number @[default: 0, range: [0, 1]]
+---@field intro_weather boolean @if set, will set the weather to be nice all the time [default: 0, range: [0, 1]]
+---@field wind number @[default: 0, range: [0, 1]]
+---@field wind_speed number @[default: 2, range: [-50, 50]]
+---@field wind_speed_sin_t number @[default: 10, range: [0, 1]]
+---@field wind_speed_sin number @[default: 3, range: [-50, 50]]
+---@field clouds_01_target number @[default: 0, range: [-27, 100]]
+---@field clouds_02_target number @[default: 0, range: [-100, 185]]
+---@field gradient_sky_alpha_target number @[default: 0, range: [0, 1]]
+---@field sky_sunset_alpha_target number @[default: 1, range: [0, 1]]
+---@field lightning_count number @this gets decreased to 0, this is the frame count of how many times do we do our awesome lightning effect [default: 0, range: [0, 100]]
+---@field next_portal_id number @[default: 1, range: [0, 1]]
+---@field session_stat_file string @if empty, we'll create one. This tracks the play time, death, kills... etch
+---@field player_polymorph_count number @how many times player has been polymorphed [default: 0, range: [0, 1]]
+---@field player_polymorph_random_count number @how many times player has been random polymorphed [default: 0, range: [0, 1]]
+---@field player_did_infinite_spell_count number @how many times player has done a secret trick [default: 0, range: [0, 1]]
+---@field player_did_damage_over_1milj number @how many times player has player done damage of over 1000000 [default: 0, range: [0, 1]]
+---@field player_living_with_minus_hp number @how many times player has been detected with minus health [default: 0, range: [0, 1]]
+---@field global_genome_relations_modifier number @Genome_GetHerdRelation adds this value to the results. 100 = good relations, 0 is bad  [default: 0, range: [0, 1]]
+---@field mods_have_been_active_during_this_run boolean @[default: 0, range: [0, 1]]
+---@field twitch_has_been_active_during_this_run boolean @[default: 0, range: [0, 1]]
+---@field next_cut_through_world_id number @[default: 0, range: [0, 1]]
+---@field perk_infinite_spells boolean @if true, almost all spells will have unlimited uses. (black holes, matter eater, heals excluded [default: 0, range: [0, 1]]
+---@field perk_trick_kills_blood_money boolean @if true, trick kills will produce blood money (heals player) [default: 0, range: [0, 1]]
+---@field perk_hp_drop_chance number @if > 0, then there's chance that killing an enemy will drop bloodmoney_50 [default: 0, range: [0, 1]]
+---@field perk_gold_is_forever boolean @drop_money.lua - checks if this is true and removes Lifetime_Component from gold nuggets [default: 0, range: [0, 1]]
+---@field perk_rats_player_friendly boolean @if 1, rats don't attack player herd and the other way round. this is a persistent change [default: 0, range: [0, 1]]
+---@field EVERYTHING_TO_GOLD boolean @if true everything will be gold + used to track if the wallet should go to infinite [default: 0, range: [0, 1]]
+---@field material_everything_to_gold string @[default: gold, range: [0, 1]]
+---@field material_everything_to_gold_static string @[default: gold_static, range: [0, 1]]
+---@field INFINITE_GOLD_HAPPENING boolean @the secret ending with infinite gold [default: 0, range: [0, 1]]
+---@field ENDING_HAPPINESS_HAPPENING boolean @if true, will do the animations for happiness ending [default: 0, range: [0, 1]]
+---@field ENDING_HAPPINESS_FRAMES number @to keep track of the animation [default: 0, range: [0, 1]]
+---@field ENDING_HAPPINESS boolean @this is set if ending happiness has happened [default: 0, range: [0, 1]]
+---@field mFlashAlpha number @to keep track of the animation [default: 0, range: [0, 1]]
+---@field DEBUG_LOADED_FROM_AUTOSAVE number @how many times have loaded from autosaves [default: 0, range: [0, 1]]
+---@field DEBUG_LOADED_FROM_OLD_VERSION number @how many times have we loaded from an old version of the game [default: 0, range: [0, 1]]
+---@field rain_target_extra number @(private) [default: 0, range: [0, 1]]
+---@field fog_target_extra number @(private) [default: 0, range: [0, 1]]
+---@field perk_rats_player_friendly_prev boolean @(private) [default: 0, range: [0, 1]]
+---@field player_spawn_location table @(custom type)
+---@field lua_globals table @(custom type)
+---@field pending_portals table @(custom type)
+---@field apparitions_per_level table @(custom type)
+---@field npc_parties table @(custom type)
+---@field orbs_found_thisrun table @(custom type)
+---@field flags table @(custom type)
+---@field changed_materials table @(custom type) pairs of materials changed via ConvertMaterialEverywhere(). stored so these can be restored when loading a save
+---@field cuts_through_world table @(custom type)
+---@field gore_multiplier number @(custom type)
+---@field trick_kill_gold_multiplier number @(custom type)
+---@field damage_flash_multiplier number @(custom type)
+---@field open_fog_of_war_everywhere boolean @(custom type) same as the trailer mode, open fog of war everywhere
+---@field consume_actions boolean @(custom type) same as the trailer mode, spells with limited uses are not consumed if this is false
+---@class WormAIComponent : Component
+---@field speed number @[default: 1, range: [0, 10000]]
+---@field speed_hunt number @[default: 3, range: [0, 10000]]
+---@field direction_adjust_speed number @[default: 1, range: [0, 10000]]
+---@field direction_adjust_speed_hunt number @[default: 1, range: [0, 10000]]
+---@field random_target_box_radius number @[default: 512, range: [0, 10000]]
+---@field new_hunt_target_check_every number @[default: 30, range: [0, 10000]]
+---@field new_random_target_check_every number @[default: 120, range: [0, 10000]]
+---@field hunt_box_radius number @[default: 512, range: [0, 10000]]
+---@field cocoon_food_required number @how much food do we need to consume before we can cocoon [default: 30, range: [0, 1]]
+---@field cocoon_entity string @if empty, won't cocoon, if set it'll spawn this after it's eaten enough
+---@field give_up_area_radius number @[default: 50, range: [0, 10000]]
+---@field give_up_time_frames number @[default: 300, range: [0, 10000]]
+---@field debug_follow_mouse boolean @[default: 0, range: [0, 1]]
+---@field mRandomTarget table @(private)
+---@field mTargetEntityId number @(private) [default: 0, range: [0, 1]]
+---@field mNextTargetCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field mNextHuntTargetCheckFrame number @(private) [default: 0, range: [0, 1]]
+---@field mGiveUpStarted number @(private) [default: 0, range: [0, 1]]
+---@field mGiveUpAreaMinX number @(private) [default: 0, range: [0, 1]]
+---@field mGiveUpAreaMinY number @(private) [default: 0, range: [0, 1]]
+---@field mGiveUpAreaMaxX number @(private) [default: 0, range: [0, 1]]
+---@field mGiveUpAreaMaxY number @(private) [default: 0, range: [0, 1]]
+---@class WormAttractorComponent : Component
+---@field direction number @1 = attracts worms, -1 detracts worms [default: 1, range: [-1, 1]]
+---@field radius number @radius of detracting worms [default: 50, range: [0, 100]]
+---@class WormComponent : Component
+---@field speed number @[default: 1, range: [0, 10000]]
+---@field acceleration number @[default: 3, range: [0, 10000]]
+---@field gravity number @[default: 3, range: [0, 10000]]
+---@field tail_gravity number @[default: 30, range: [0, 10000]]
+---@field part_distance number @[default: 10, range: [0, 10000]]
+---@field ground_check_offset number @[default: 0, range: [0, 10000]]
+---@field hitbox_radius number @[default: 1, range: [0, 1e+006]]
+---@field bite_damage number @how much damage does this do when it hits an entity [default: 1, range: [0, 10]]
+---@field target_kill_radius number @[default: 1, range: [0, 1e+006]]
+---@field target_kill_ragdoll_force number @[default: 1, range: [0, 1e+006]]
+---@field jump_cam_shake number @[default: 4, range: [0, 10000]]
+---@field jump_cam_shake_distance number @[default: 256, range: [0, 10000]]
+---@field eat_anim_wait_mult number @[default: 0.05, range: [0, 10000]]
+---@field ragdoll_filename string
+---@field is_water_worm boolean @if true, tries to stay in liquids [default: 0, range: [0, 1]]
+---@field max_speed number @max speed, used when attracted to a point [default: 25, range: [0, 1]]
+---@field mTargetVec table @(private)
+---@field mGravVelocity number @(private) [default: 0, range: [0, 1]]
+---@field mSpeed number @(private) [default: 0, range: [0, 1]]
+---@field mTargetPosition table @(private)
+---@field mTargetSpeed number @(private) [default: 0, range: [0, 1]]
+---@field mOnGroundPrev boolean @(private) [default: 0, range: [0, 1]]
+---@field mMaterialIdPrev number @(private) [default: 0, range: [0, 1]]
+---@field mFrameNextDamage number @(private) [default: 0, range: [0, 1]]
+---@field mDirectionAdjustSpeed number @(private) [default: 1, range: [0, 1]]
+---@field mPrevPositions table @(private)
+---@field ground_decceleration number @(custom type)
