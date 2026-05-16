@@ -35,6 +35,18 @@ logger.setLogger(Logger)
     通用函数部分
 ]]
 
+local function add_capability(self,...)
+    for _,cap in ipairs({...}) do 
+        --设置属性获取器
+        for name,fn in pairs(cap.getter) do 
+            self.__getter[name] = fn
+        end
+        --设置属性设置器
+        for name,fn in pairs(cap.setter) do 
+            self.__setter[name] = fn
+        end
+    end
+end
 local function get_id(entity)
     if type(entity) == 'number' then
         return entity
@@ -44,7 +56,7 @@ local function get_id(entity)
 end
 ---@param _class_name string  类名
 ---@param base? table
-local function class(_class_name,base)
+local function class(_class_name,base,...)
     --类的元表方法
     local _class = setmetatable({},{
         __index = base or nil ,   --父类方法和属性只读
@@ -55,11 +67,52 @@ local function class(_class_name,base)
             return obj
         end
     })    
+    --类属性
+    _class.__getter = {}
+    _class.__setter  = {}
     --类方法，用以控制实例对象
-    _class.__index = _class
+    _class.__index = function (self,key)
+        --先查找类自己的字段(self是实例)
+        local field = _class[key]
+        if field ~=nil  then
+            return field
+        end
+        --查找类的getter访问属性
+        local getter = _class.__getter[key]
+        if getter~=nil  then
+           return getter(self,key)
+        end
+        --没有返回nil
+        return nil 
+    end
+    _class.__newindex = function (self,key,value)
+        --只查找类的setter访问器
+        local setter = _class.__setter[key]
+        if setter then
+            setter(self,key,value)
+            return 
+        end
+        error(_class_name ..  "no such field:"..tostring(key) .. "")
+    end
     _class._class_name = _class_name
+
+    --继承父类的属性
+    if base then
+        for name,fn in pairs(base.__getter) do
+            _class.__getter[name] = fn 
+        end
+        for name,fn in pairs(base.__setter) do 
+            _class.__setter[name] = fn 
+        end 
+    end
+    
+    --自己的属性
+    add_capability(_class,...)
     return _class
 end
+
+
+
 -------------------------------------------------------------------------------------------
 --[[
     内部私有类，不暴露构造函数
@@ -190,14 +243,94 @@ function Component:set_object_value2(object_name,variable_name,...)
 end
 
 -------------------------------------------------------------------------------------------
-
+--能力
+---@class Capability 
+---@field damage_model table
+---@field tags table
+local Capability = {
+}
+Capability.damage_model ={
+    getter ={
+        hp = function (self)
+            local damagemodel = self:damagemodel_comp()
+            if not damagemodel then return nil end
+            return damagemodel.hp
+        end,
+        max_hp = function (self)
+            local damagemodel = self:damagemodel_comp()
+            if not damagemodel then return nil end
+            return damagemodel.max_hp
+        end,
+        damage_muls = function (self)
+            local comp = self:damagemodel_comp(true)
+            if not comp then return nil end 
+            return ComponentObjectGetMembers(comp:get_id(),"damage_multipliers")
+        end
+    },
+    setter = {
+        hp = function (self,hp)
+            local damagemodel = self:damagemodel_comp()
+            if not damagemodel then return nil end
+            damagemodel.hp = hp 
+        end,
+        max_hp = function (self,max_hp)
+            local damagemodel = self:damagemodel_comp()
+            if not damagemodel then 
+                return nil 
+            end
+            damagemodel.max_hp = max_hp
+        end,
+        damage_muls = function (self,damage_muls)
+            local comp = self:damagemodel_comp()
+            if not comp then return nil end
+            local damage_multipliers = comp:get_object("damage_multipliers")
+            if not damage_multipliers  then return nil end 
+            for type,mul in pairs(damage_muls) do
+                damage_multipliers[type] =mul
+            end
+        end
+    }
+}
+Capability.tags ={
+    getter = {
+        tags = function (self)
+            local tags = {}
+            local s_tags =EntityGetTags(self.id)
+            if not s_tags then return nil end
+            for  tag in string.gmatch(s_tags,"([^,]+)") do
+                table.insert(tags,tag)
+            end
+            return tags
+        end
+    }
+}
+Capability.herd_id={
+    getter = {
+        herd_id = function (self)
+            local comp = self:genome_data_comp(true)
+            if not comp then return nil end
+            return comp.herd_id
+        end
+    },
+    setter= {
+        herd_id = function (self,herd_id)
+            local comp = self:genome_data_comp(true)
+            if not comp then return nil end
+            comp.herd_id = herd_id
+        end
+    }
+}
+---------------------------------------------------------------------------------------------
 --[[
     公开类，对外暴露
 ]]
 
 -- 实体类
 ---@class Entity
----@field id number|nil 实体ID
+---@field id number|nil 实体ID，只读属性
+---@field __getter table 属性获取器
+---@field __setter table 属性设置器
+---@field tags  string 实体标签，只读属性
 ---@method get_id() number 获取实体ID
 ---@method get_name() string 获取实体名称
 ---@method get_file_name() string 获取实体文件名称
@@ -210,7 +343,6 @@ end
 ---@method remove_tag(tag:string) void 移除实体标签
 ---@method add_child(child:Entity|number) void 添加子实体
 ---@method remove_child(child:Entity|number) void 移除子实体
----@method get_children() Entity[] 获取子实体
 ---@method add_comp(type_name:string,table_of_comp_values:table,tags:string,enabled:boolean) number 添加组件
 ---@method add_variable_comp(table_of_comp_values:table,tags:string,enabled:boolean) number 添加变量存储组件
 ---@method add_lua_comp(table_of_comp_values:table,tags:string,enabled:boolean) number 添加Lua组件
@@ -225,28 +357,25 @@ end
 ---@method controls_comp(including_disabled:boolean) Component|nil 获取控制组件
 ---@method genome_data_comp(including_disabled:boolean) Component|nil 获取基因组数据组件
 ---@method inventory2_comp(including_disabled:boolean) Component|nil 获取背包组件
-local Entity = class("Entity")
+local Entity = class("Entity",nil,Capability.tags)
 function Entity:init(eid)
     self.id = eid
     if eid == nil then 
         error("Entity:init: eid is nil")
     end
 end
-
-
 -- 动物类
 ---@class Animals:Entity
 ---@method is_living() boolean 重写：判断实体是否存活
----@method get_hp() number|nil 获取当前生命值
----@method set_hp(hp:number) void 设置当前生命值
----@method get_max_hp() number|nil 获取最大生命值
----@method set_max_hp(max_hp:number) void 设置最大生命值
----@method get_damage_muls() table|nil 获取承伤倍率表
----@method set_damage_muls(damage_muls:table) void 设置承伤倍率
----@method get_herd_id() number|nil 获取阵营ID
----@method set_herd_id(herd_id:number) void 设置阵营ID
+---@field  hp   number|nil
+---@field  max_hp number|nil
+---@field  damage_muls table|nil
+---@field  herd_id number|nil
 ---@method add_game_effect(effect_name:string,frames:number) Component|nil 添加游戏效果
-local Animals = class("Animals",Entity)
+local Animals = class("Animals",Entity,
+    Capability.damage_model,
+    Capability.herd_id
+)
 
 -- 玩家类
 ---@class Player:Animals
@@ -273,7 +402,6 @@ local Action_Card=class("Action_Card",Item)
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
 ---@method get_actions() Action_Card[] 获取法术(按照位置排序好)
----@method get_action(index:number) Action_Card 获取当前法术
 local Wand = class("Wand",Item)
 --天赋类
 ---@class Perk:Entity
@@ -311,7 +439,7 @@ end
 function Entity:kill()
     if self:is_living() then
         EntityKill(self.id)
-        self.id = nil 
+        rawset(self,"id",nil)
     end
 end
 -- 是否存活
@@ -356,20 +484,6 @@ function Entity:remove_child(child)
     if child_id and child_id~=0 then
         EntityRemoveFromParent(child_id)
     end
-end
-
----@return Entity[] 子实体列表
-function Entity:get_children()
-    local childs = {}
-    local children =  EntityGetAllChildren(self.id)
-    if not children then
-        error("Entity:get_children: children is nil")
-    end
-    for _,child_id in ipairs(children) do
-        local child = Entity(child_id)
-        table.insert(childs,child)
-    end
-    return childs
 end
 
 
@@ -502,55 +616,7 @@ function Animals:is_living()
     end
     return true
 end
---获取血量
-function Animals:get_hp()
-    local damagemodel = self:damagemodel_comp()
-    if not damagemodel then return nil end
-    return damagemodel.hp
-end
----@param hp number 
-function Animals:set_hp(hp)
-    local damagemodel = self:damagemodel_comp()
-    if not damagemodel then return nil end
-    damagemodel.hp = hp 
-end
-function Animals:get_max_hp()
-    local damagemodel = self:damagemodel_comp()
-    if not damagemodel then return nil end
-    return damagemodel.max_hp
-end
-function Animals:set_max_hp(max_hp)
-    local damagemodel = self:damagemodel_comp()
-    if not damagemodel then return nil end
-    damagemodel.max_hp = max_hp
-end
 
--- 承伤倍率
-function Animals:get_damage_muls()
-    local comp = EntityGetFirstComponentIncludingDisabled(self.id,"DamageModelComponent")
-    if not comp then return nil end 
-    return ComponentObjectGetMembers(comp,"damage_multipliers")
-end
-function Animals:set_damage_muls(damage_muls)
-    local comp = self:damagemodel_comp()
-    if not comp then return nil end
-    local damage_multipliers = comp:get_object("damage_multipliers")
-    if not damage_multipliers  then return nil end 
-    for type,mul in pairs(damage_muls) do
-        damage_multipliers[type] =mul
-    end
-end
--- 获取敌人阵营
-function Animals:get_herd_id()
-    local comp = self:genome_data_comp(true)
-    if not comp then return nil end
-    return comp.herd_id
-end
-function Animals:set_herd_id(herd_id)
-    local comp = self:genome_data_comp(true)
-    if not comp then return nil end
-    comp.herd_id = herd_id
-end
 --- 设置效果
 ---@param effect_name string
 function Animals:add_game_effect(effect_name,frames)
@@ -640,14 +706,13 @@ function Item:set_ui_info(info)
         end
     end
 end
----@return number,number
+---@return number|nil,number|nil
 function Item:get_slot()
     local item_comp = self:item_comp(true)
+    if not item_comp then return nil end 
     local x,y = item_comp:get_value2("inventory_slot")
     return x,y
 end
-
-
 
 -- 获取法术id
 ---@return string|nil  法术id  
@@ -716,13 +781,7 @@ function Wand:get_actions()
     end)
     return cards
 end
----@return Action_Card|nil 
-function Wand:get_ation(index)
-    ---@type Action_Card[]
-    local actions = self:get_actions()
-    if not actions then return nil end
-    return actions[index]
-end
+
 return M
 
 
