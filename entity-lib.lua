@@ -80,7 +80,7 @@ local function class(_class_name,base,...)
         --查找类的getter访问属性
         local getter = _class.__getter[key]
         if getter~=nil  then
-           return getter(self,key)
+           return getter(self)
         end
         --没有返回nil
         return nil 
@@ -89,7 +89,7 @@ local function class(_class_name,base,...)
         --只查找类的setter访问器
         local setter = _class.__setter[key]
         if setter then
-            setter(self,key,value)
+            setter(self,value)
             return 
         end
         error(_class_name ..  "no such field:"..tostring(key) .. "")
@@ -253,18 +253,15 @@ Capability.damage_model ={
     getter ={
         hp = function (self)
             local damagemodel = self:damagemodel_comp()
-            if not damagemodel then return nil end
-            return damagemodel.hp
+            return damagemodel and  damagemodel.hp
         end,
         max_hp = function (self)
             local damagemodel = self:damagemodel_comp()
-            if not damagemodel then return nil end
-            return damagemodel.max_hp
+            return damagemodel and  damagemodel.max_hp
         end,
         damage_muls = function (self)
             local comp = self:damagemodel_comp(true)
-            if not comp then return nil end 
-            return ComponentObjectGetMembers(comp:get_id(),"damage_multipliers")
+            return comp and ComponentObjectGetMembers(comp:get_id(),"damage_multipliers")
         end
     },
     setter = {
@@ -308,18 +305,187 @@ Capability.herd_id={
     getter = {
         herd_id = function (self)
             local comp = self:genome_data_comp(true)
-            if not comp then return nil end
-            return comp.herd_id
+            return comp and  comp.herd_id
         end
     },
     setter= {
         herd_id = function (self,herd_id)
             local comp = self:genome_data_comp(true)
-            if not comp then return nil end
+            if not comp then
+                error("查找herd_id时无法查找到组件")
+                return nil
+            end
             comp.herd_id = herd_id
         end
     }
 }
+---@class Capability.wand_ability
+---@field deck_capacity number|nil  法杖容量
+---@field actions_per_round number|nil 施法数
+---@field fire_rate_wait number|nil 延迟(按帧)
+---@field reload_time number|nil 充能时间(按帧)
+---@field spread_degress number|nil 散射角度
+---@field speed_multiplier number|nil 速度倍率
+---@field shuffle_deck_when_empty boolean|nil ?
+---@field mana_max number|nil 最大法力
+---@field mana_charge_speed number|nil 回蓝速度
+---@field click_to_use boolean|nil 是否能够点击使用
+
+local function _gun_config(self)
+    local comp = self:ability_comp(true)
+    return comp and  comp:get_object("gun_config")
+end
+
+local function _gunaction_config(self)
+    local comp = self:ability_comp(true)
+    return comp and  comp:get_object("gunaction_config")
+end
+Capability.wand_ability = { 
+    getter = {
+        deck_capacity = function (self)
+            local obj = _gun_config(self)
+            return obj and obj.deck_capacity
+        end,
+        actions_per_round = function (self)
+            local obj = _gun_config(self)
+            return obj and obj.actions_per_round
+        end,
+        fire_rate_wait = function (self)        
+            local obj = _gunaction_config(self)
+            return obj and obj.fire_rate_wait
+        end,
+        reload_time = function (self)
+            local obj = _gun_config(self)
+            return obj and obj.reload_time
+        end,
+        spread_degress = function (self)
+            local obj = _gunaction_config(self)
+            return obj and obj.spread_degress
+        end,
+        speed_mul = function (self)
+            local obj = _gunaction_config(self)
+            return obj and obj.speed_multiplier
+        end,
+        shuffle_deck_when_empty = function (self)
+            local obj = _gun_config(self)
+            return obj and obj.shuffle_deck_when_empty
+        end,
+        mana_max = function (self)
+            local obj = self:ability_comp(true)
+            return obj and obj.mana_max
+        end,
+        mana_charge_speed = function (self)
+            local obj = self:ability_comp(true)
+            return obj and obj.mana_charge_speed
+        end,
+        click_to_use = function (self)
+            local obj = self:ability_comp(true)
+            return obj and obj.click_to_use
+        end
+    },
+    setter  = {
+        deck_capacity = function (self, value)
+            local obj = _gun_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gun_config 对象")
+            end
+            obj.deck_capacity = value
+        end,
+        actions_per_round = function (self, value)
+            local obj = _gun_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gun_config 对象")
+            end
+            obj.actions_per_round = value
+        end,
+        fire_rate_wait = function (self, value)
+            local obj = _gunaction_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gunaction_config 对象")
+            end
+            obj.fire_rate_wait = value
+        end,
+        reload_time = function (self, value)
+            local obj = _gun_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gun_config 对象")
+            end
+            obj.reload_time = value
+        end,
+        spread_degress = function (self, value)
+            local obj = _gunaction_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gunaction_config 对象")
+            end
+            obj.spread_degress = value
+        end,
+        speed_mul = function (self, value)
+            local obj = _gunaction_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gunaction_config 对象")
+            end
+            obj.speed_multiplier = value
+        end,
+        shuffle_deck_when_empty = function (self, value)
+            local obj = _gun_config(self)
+            if not obj then
+                error("wand_ability: 无法获取 gun_config 对象")
+            end
+            obj.shuffle_deck_when_empty = value
+        end,
+        mana_max = function (self, value)
+            local obj = self:ability_comp()
+            if not obj then
+                error("wand_ability: 无法获取 ability_component")
+            end
+            obj.mana_max = value
+        end,
+        mana_charge_speed = function (self, value)
+            local obj = self:ability_comp()
+            if not obj then
+                error("wand_ability: 无法获取 ability_component")
+            end
+            obj.mana_charge_speed = value
+        end,
+        click_to_use = function (self, value)
+            local obj = self:ability_comp()
+            if not obj then
+                error("wand_ability: 无法获取 ability_component")
+            end
+            obj.click_to_use = value
+        end
+    }
+}
+
+--[[
+    下次完成
+]]
+---@class Capability.item
+---@field item_name string|nil 
+---@field always_use_item_name_in_ui boolean|nil 
+---@field inventory_slot any
+Capability.item ={
+    getter = {
+        item_name = function (self)
+            local item  = self:item_comp(true)
+            if not item  then return nil end 
+            return item.item_name
+        end,
+        always_use_item_name_in_ui = function (self)
+            local item  = self:item_comp(true)
+            if not item  then return nil end 
+            return item.always_use_item_name_in_ui
+        end,      
+        inventory_slot = function (self)
+            
+        end
+    },
+    setter = {
+    
+    }
+}
+
+
 ---------------------------------------------------------------------------------------------
 --[[
     公开类，对外暴露
@@ -402,7 +568,7 @@ local Action_Card=class("Action_Card",Item)
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
 ---@method get_actions() Action_Card[] 获取法术(按照位置排序好)
-local Wand = class("Wand",Item)
+local Wand = class("Wand",Item,Capability.wand_ability)
 --天赋类
 ---@class Perk:Entity
 local Perk = class("Perk",Entity)
