@@ -156,8 +156,8 @@ function ComponentFactory:new(entity_id,comp_id)
                 return comp:get_value2(variable_name)
             end           
         end,
-        __newindex = function (_,variable_name,...)
-            comp:set_value2(variable_name,...)
+        __newindex = function (_,variable_name,value)
+            comp:set_value2(variable_name,value)
         end
     })
     return proxy
@@ -179,8 +179,8 @@ function Component:get_object(object_name)
 end
 
 function Component:init(entity_id,comp_id)
-    self.entity_id = entity_id
-    self.id = comp_id
+    rawset(self,"entity_id",entity_id)
+    rawset(self,"id",comp_id)
 end
 
 ---@return number 组件ID
@@ -244,19 +244,20 @@ end
 
 -------------------------------------------------------------------------------------------
 --能力
----@class Capability 
----@field damage_model table
----@field tags table
 local Capability = {
 }
+---@class Capability.damage_model
+---@field hp number|nil
+---@field max_hp number|nil
+---@field damage_muls table|nil
 Capability.damage_model ={
     getter ={
         hp = function (self)
-            local damagemodel = self:damagemodel_comp()
+            local damagemodel = self:damagemodel_comp(true)
             return damagemodel and  damagemodel.hp
         end,
         max_hp = function (self)
-            local damagemodel = self:damagemodel_comp()
+            local damagemodel = self:damagemodel_comp(true)
             return damagemodel and  damagemodel.max_hp
         end,
         damage_muls = function (self)
@@ -266,19 +267,19 @@ Capability.damage_model ={
     },
     setter = {
         hp = function (self,hp)
-            local damagemodel = self:damagemodel_comp()
+            local damagemodel = self:damagemodel_comp(true)
             if not damagemodel then return nil end
             damagemodel.hp = hp 
         end,
         max_hp = function (self,max_hp)
-            local damagemodel = self:damagemodel_comp()
+            local damagemodel = self:damagemodel_comp(true)
             if not damagemodel then 
                 return nil 
             end
             damagemodel.max_hp = max_hp
         end,
         damage_muls = function (self,damage_muls)
-            local comp = self:damagemodel_comp()
+            local comp = self:damagemodel_comp(true)
             if not comp then return nil end
             local damage_multipliers = comp:get_object("damage_multipliers")
             if not damage_multipliers  then return nil end 
@@ -288,6 +289,8 @@ Capability.damage_model ={
         end
     }
 }
+---@class Capability.tags
+---@field tags string[]
 Capability.tags ={
     getter = {
         tags = function (self)
@@ -299,8 +302,11 @@ Capability.tags ={
             end
             return tags
         end
-    }
+    },
+    setter = {}
 }
+---@class Capability.herd_id
+---@field herd_id number|nil
 Capability.herd_id={
     getter = {
         herd_id = function (self)
@@ -324,8 +330,8 @@ Capability.herd_id={
 ---@field actions_per_round number|nil 施法数
 ---@field fire_rate_wait number|nil 延迟(按帧)
 ---@field reload_time number|nil 充能时间(按帧)
----@field spread_degress number|nil 散射角度
----@field speed_multiplier number|nil 速度倍率
+---@field spread_degrees number|nil 散射角度
+---@field speed_mul number|nil 速度倍率
 ---@field shuffle_deck_when_empty boolean|nil ?
 ---@field mana_max number|nil 最大法力
 ---@field mana_charge_speed number|nil 回蓝速度
@@ -358,9 +364,9 @@ Capability.wand_ability = {
             local obj = _gun_config(self)
             return obj and obj.reload_time
         end,
-        spread_degress = function (self)
+        spread_degrees = function (self)
             local obj = _gunaction_config(self)
-            return obj and obj.spread_degress
+            return obj and obj.spread_degrees
         end,
         speed_mul = function (self)
             local obj = _gunaction_config(self)
@@ -412,12 +418,12 @@ Capability.wand_ability = {
             end
             obj.reload_time = value
         end,
-        spread_degress = function (self, value)
+        spread_degrees = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
                 error("wand_ability: 无法获取 gunaction_config 对象")
             end
-            obj.spread_degress = value
+            obj.spread_degrees = value
         end,
         speed_mul = function (self, value)
             local obj = _gunaction_config(self)
@@ -434,21 +440,21 @@ Capability.wand_ability = {
             obj.shuffle_deck_when_empty = value
         end,
         mana_max = function (self, value)
-            local obj = self:ability_comp()
+            local obj = self:ability_comp(true)
             if not obj then
                 error("wand_ability: 无法获取 ability_component")
             end
             obj.mana_max = value
         end,
         mana_charge_speed = function (self, value)
-            local obj = self:ability_comp()
+            local obj = self:ability_comp(true)
             if not obj then
                 error("wand_ability: 无法获取 ability_component")
             end
             obj.mana_charge_speed = value
         end,
         click_to_use = function (self, value)
-            local obj = self:ability_comp()
+            local obj = self:ability_comp(true)
             if not obj then
                 error("wand_ability: 无法获取 ability_component")
             end
@@ -463,28 +469,92 @@ Capability.wand_ability = {
 ---@class Capability.item
 ---@field item_name string|nil 
 ---@field always_use_item_name_in_ui boolean|nil 
----@field inventory_slot any
+---@field inventory_slot table{x:number,y:number} 布局坐标
+---@field ui_name string|nil
+---@field ui_description string|nil
+---@field ui_sprite string|nil
 Capability.item ={
     getter = {
         item_name = function (self)
             local item  = self:item_comp(true)
-            if not item  then return nil end 
-            return item.item_name
+            return item and  item.item_name
         end,
         always_use_item_name_in_ui = function (self)
             local item  = self:item_comp(true)
-            if not item  then return nil end 
-            return item.always_use_item_name_in_ui
+            return item and  item.always_use_item_name_in_ui
         end,      
         inventory_slot = function (self)
-            
+            local item_comp = self:item_comp(true)
+            if not item_comp then return nil end
+            local x,y = item_comp:get_value2("inventory_slot")
+            local pos = {x=x,y=y}
+            return pos
+        end,
+        ui_name = function (self)
+            local comp = self:ability_comp(true)
+            return comp and comp.ui_name
+        end,
+        ui_description = function (self)
+            local comp = self:item_comp(true)
+            return comp and comp.ui_description
+        end,
+        ui_sprite = function (self)
+            local comp = self:item_comp(true)
+            return comp and comp.ui_sprite
         end
     },
     setter = {
-    
+        item_name = function (self,value)
+            local item = self:item_comp(true)
+            if not item then
+                error("item: 获取 item_comp 对象失败")
+            end
+            item.item_name = value
+        end,
+        always_use_item_name_in_ui = function (self,value)
+            local item = self:item_comp(true)
+            if not item then
+                error("item: 获取 item_comp 对象失败")
+            end
+            item.always_use_item_name_in_ui = value
+        end,
+        inventory_slot = function (self,pos)
+            local item_comp = self:item_comp(true)
+            if not item_comp then
+                error("item: 获取 item_comp 对象失败")
+            end
+            item_comp:set_value2("inventory_slot",pos.x,pos.y)
+        end,
+        ui_name = function (self,name)
+            local comp = self:ability_comp(true)
+            if not comp then
+                error("item: 获取 ability_component 对象失败")
+            end
+            comp.ui_name = name
+        end,
+        ui_description = function (self,description)
+            local comp = self:item_comp(true)
+            if not comp then
+                error("item: 获取 ability_component 对象失败")
+            end
+            comp.ui_description = description
+        end,
+        ui_sprite = function (self,sprite)
+            local comp = self:item_comp(true)
+            if not comp then
+                error("item: 获取 ability_component 对象失败")
+            end
+            comp.ui_sprite = sprite
+        end
     }
 }
-
+---@class Capability.action
+Capability.action = {
+    getter = {
+    },
+    setter = {
+    }
+}
 
 ---------------------------------------------------------------------------------------------
 --[[
@@ -492,11 +562,11 @@ Capability.item ={
 ]]
 
 -- 实体类
----@class Entity
+---@class Entity : Capability.tags
 ---@field id number|nil 实体ID，只读属性
+---@field _class_name string 实体类名，只读属性
 ---@field __getter table 属性获取器
 ---@field __setter table 属性设置器
----@field tags  string 实体标签，只读属性
 ---@method get_id() number 获取实体ID
 ---@method get_name() string 获取实体名称
 ---@method get_file_name() string 获取实体文件名称
@@ -525,18 +595,14 @@ Capability.item ={
 ---@method inventory2_comp(including_disabled:boolean) Component|nil 获取背包组件
 local Entity = class("Entity",nil,Capability.tags)
 function Entity:init(eid)
-    self.id = eid
     if eid == nil then 
         error("Entity:init: eid is nil")
     end
+    rawset(self,"id",eid)
 end
 -- 动物类
----@class Animals:Entity
+---@class Animals : Entity, Capability.damage_model, Capability.herd_id
 ---@method is_living() boolean 重写：判断实体是否存活
----@field  hp   number|nil
----@field  max_hp number|nil
----@field  damage_muls table|nil
----@field  herd_id number|nil
 ---@method add_game_effect(effect_name:string,frames:number) Component|nil 添加游戏效果
 local Animals = class("Animals",Entity,
     Capability.damage_model,
@@ -562,9 +628,8 @@ local Item = class("Item",Entity)
 ---@class Action_Card:Item
 ---@method get_action_id() number|nil 获取法术ID
 local Action_Card=class("Action_Card",Item)
-
 -- 法杖类
----@class Wand:Item
+---@class Wand : Item, Capability.wand_ability
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
 ---@method get_actions() Action_Card[] 获取法术(按照位置排序好)
@@ -768,10 +833,6 @@ end
 function Entity:variable_comps(including_disabled)
     return self:get_comps("VariableStorageComponent",including_disabled)
 end
-
-
-
-
 function Animals:is_living()
     if self.id == nil then
         logger:warn("实体不存在")
@@ -782,7 +843,6 @@ function Animals:is_living()
     end
     return true
 end
-
 --- 设置效果
 ---@param effect_name string
 function Animals:add_game_effect(effect_name,frames)
@@ -795,8 +855,6 @@ function Animals:add_game_effect(effect_name,frames)
     end
     return comp
 end
-
-
 ---获取鼠标位置
 function Player:get_mouse_pos()
     return DEBUG_GetMouseWorld()
