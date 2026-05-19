@@ -1,36 +1,19 @@
-
-
-
 -------------------------------------------------------------------------------------------
 --[[
     日志部分
 ]]
-local Logger = {
-}
-function Logger:write(msg)
-    -- GamePrint(msg)
-end
-function Logger:error(msg)
-    self:write("[Error]" .. msg)
-end
-function Logger:info(msg)
-    self:write("[Info]" .. msg)
-end
-function Logger:debug(msg)
-    self:write("[Debug]" .. msg)
-end
-function Logger:warn(msg)
-    self:write("[Warn]" .. msg)
-end
-
+local L = {}
 local logger = {}
-function logger.setLogger(_Logger)
-    setmetatable(logger,{
-        __index = _Logger
-    })
+function logger:error(msg)
+    error(msg)
 end
-logger.setLogger(Logger)
+function logger:warn(msg)
+    GamePrint(msg)
+end
 
+L.logger = logger
+
+-------------------------------------------------------------------------------------------
 --[[
     通用函数部分
 ]]
@@ -93,7 +76,7 @@ local function class(_class_name,base,...)
             setter(self,value)
             return 
         end
-        error(_class_name ..  "no such field:"..tostring(key) .. "")
+        L.logger:error(_class_name ..  "no such field:"..tostring(key) .. "")
     end
     _class._class_name = _class_name
 
@@ -111,7 +94,8 @@ local function class(_class_name,base,...)
     add_capability(_class,...)
     return _class
 end
--------------------------------------------------------------------------------------------
+
+
 -------------------------------------------------------------------------------------------
 --能力
 local Capability = {
@@ -127,7 +111,10 @@ Capability.position = {
     },
     setter = {
         pos = function (self,pos)
-            EntitySetTransform(self.id,pos.x,pos.y)
+            local old = self.pos
+            local x = pos.x or old.x 
+            local y = pos.y or old.y 
+            EntitySetTransform(self.id,x,y)
         end
     }
 }
@@ -221,8 +208,8 @@ Capability.herd_id={
         herd_id = function (self,herd_id)
             local comp = self:genome_data_comp(true)
             if not comp then
-                error("查找herd_id时无法查找到组件")
-                return nil
+                L.logger:error("查找herd_id时无法查找到组件")
+                return
             end
             comp.herd_id = herd_id
         end
@@ -296,79 +283,87 @@ Capability.wand_ability = {
         deck_capacity = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gun_config 对象")
+                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                return
             end
             obj.deck_capacity = value
         end,
         actions_per_round = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gun_config 对象")
+                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                return
             end
             obj.actions_per_round = value
         end,
         fire_rate_wait = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gunaction_config 对象")
+                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                return
             end
             obj.fire_rate_wait = value
         end,
         reload_time = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gun_config 对象")
+                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                return
             end
             obj.reload_time = value
         end,
         spread_degrees = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gunaction_config 对象")
+                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                return
             end
             obj.spread_degrees = value
         end,
         speed_mul = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gunaction_config 对象")
+                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                return
             end
             obj.speed_multiplier = value
         end,
         shuffle_deck_when_empty = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                error("wand_ability: 无法获取 gun_config 对象")
+                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                return
             end
             obj.shuffle_deck_when_empty = value
         end,
         mana_max = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                error("wand_ability: 无法获取 ability_component")
+                L.logger:error("wand_ability: 无法获取 ability_component")
+                return
             end
             obj.mana_max = value
         end,
         mana_charge_speed = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                error("wand_ability: 无法获取 ability_component")
+                L.logger:error("wand_ability: 无法获取 ability_component")
+                return
             end
             obj.mana_charge_speed = value
         end,
         click_to_use = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                error("wand_ability: 无法获取 ability_component")
+                L.logger:error("wand_ability: 无法获取 ability_component")
+                return
             end
             obj.click_to_use = value
         end
     }
 }
 
---[[
-    下次完成
-]]
+
 ---@class Capability.wand_sprite
 ---@field sprite_file string|nil 法杖在背包显示的图像路径
 ---@field image_file string|nil 法杖在手上显示的图像路径
@@ -402,31 +397,38 @@ Capability.wand_sprite = {
         sprite_file = function (self,sprite_file)
             local obj = self:ability_comp(true)
             if not obj then
-                error("wand_sprite: 获取 ability_component 失败")
+                L.logger:error("wand_sprite: 获取 ability_component 失败")
+                return
             end
             obj.sprite_file = sprite_file
         end,
         image_file = function (self,image_file)
             local comp = self:sprite_comp(true)
             if not comp then
-                error("wand_sprite: 获取 sprite_component 失败")
+                L.logger:error("wand_sprite: 获取 sprite_component 失败")
+                return
             end
             comp.image_file = image_file
         end,
         sprite_offset = function (self,offset)
             local comp = self:sprite_comp(true)
             if not comp then
-                error("wand_sprite: 获取 sprite_component 失败")
+                L.logger:error("wand_sprite: 获取 sprite_component 失败")
+                return
             end
-            comp.offset_x = offset.x
-            comp.offset_y = offset.y
+            comp.offset_x = offset.x or comp.offset_x
+            comp.offset_y = offset.y or comp.offset_y
         end,
         hotspot_offset = function (self,offset)
             local comp = self:hotspot_comp(true,"shoot_pos")
             if not comp then
-                error("wand_sprite: 获取 hotspot_component 失败")
+                L.logger:error("wand_sprite: 获取 hotspot_component 失败")
+                return
             end
-            comp:set_value2("offset",offset.x,offset.y)
+            local old = self.hotspot_comp 
+            local x = offset.x or old.x 
+            local y = offset.y or old.y 
+            comp:set_value2("offset",x,y)
         end
     }
 }
@@ -483,42 +485,51 @@ Capability.item ={
         item_name = function (self,value)
             local item = self:item_comp(true)
             if not item then
-                error("item: 获取 item_comp 对象失败")
+                L.logger:error("item: 获取 item_comp 对象失败")
+                return
             end
             item.item_name = value
         end,
         always_use_item_name_in_ui = function (self,value)
             local item = self:item_comp(true)
             if not item then
-                error("item: 获取 item_comp 对象失败")
+                L.logger:error("item: 获取 item_comp 对象失败")
+                return
             end
             item.always_use_item_name_in_ui = value
         end,
         inventory_slot = function (self,pos)
             local item_comp = self:item_comp(true)
             if not item_comp then
-                error("item: 获取 item_comp 对象失败")
+                L.logger:error("item: 获取 item_comp 对象失败")
+                return
             end
-            item_comp:set_value2("inventory_slot",pos.x,pos.y)
+            local old_pos = self.inventory_slot
+            local x = pos.x or old_pos.x 
+            local y = pos.y or old_pos.y
+            item_comp:set_value2("inventory_slot",x,y)
         end,
         ui_name = function (self,name)
             local comp = self:ability_comp(true)
             if not comp then
-                error("item: 获取 ability_component 对象失败")
+                L.logger:error("item: 获取 ability_component 对象失败")
+                return
             end
             comp.ui_name = name
         end,
         ui_description = function (self,description)
             local comp = self:item_comp(true)
             if not comp then
-                error("item: 获取 item_component 对象失败")
+                L.logger:error("item: 获取 item_component 对象失败")
+                return
             end
             comp.ui_description = description
         end,
         ui_sprite = function (self,sprite)
             local comp = self:item_comp(true)
             if not comp then
-                error("item: 获取 item_component 对象失败")
+                L.logger:error("item: 获取 item_component 对象失败")
+                return
             end
             comp.ui_sprite = sprite
         end
@@ -539,8 +550,7 @@ Capability.item ={
 ---@field max_uses number|nil 最大可用次数,只读
 ---@field uses_remaining number|nil 当前可用次数,默认为-1
 ---@field custom_xml_file string|nil 只读，法术在法杖内，法杖产生的例子效果等(如黑洞的紫色光粒)
-
-
+---@field permanently_attached boolean|nil 是否为永久法术
 local _actions_cache = {}
 setmetatable(_actions_cache,{
     __index = function(self,key)
@@ -611,32 +621,58 @@ Capability.action = {
         custom_xml_file = function (self)
             local data = _actions_cache[self.action_id] 
             return data and data.custom_xml_file
+        end,
+        permanently_attached = function (self)
+            local comp = self:item_comp(true)
+            return comp and comp.permanently_attached
         end
     },
     setter = {
         action_id = function (self,action_id)
             local comp = self:item_action_comp(true)
             if not comp then
-                error("action: 获取 item_action_comp 对象失败")
+                L.logger:error("action: 获取 item_action_comp 对象失败")
+                return
             end
             comp.action_id = action_id
         end,
         uses_remaining = function (self,uses_remaining)
             local comp  = self:item_comp(true)
             if not comp then            
-                error("action: 获取 item_comp 对象失败")
+                L.logger:error("action: 获取 item_comp 对象失败")
+                return
             end
             comp.uses_remaining = uses_remaining
         end,
         sprite = function (self,image_file)
             local comp = self:sprite_comp(true,"item_identified")
             if not comp then 
-                error("action: 获取 sprite_comp 对象失败")
+                L.logger:error("action: 获取 sprite_comp 对象失败")
+                return
             end
             comp.image_file = image_file 
+        end,
+        permanently_attached = function (self,permanently_attached)
+            local comp = self:item_comp(true)
+            if not comp then
+                L.logger:error("action: 获取permanently_attached对象失败")
+            end
+            comp.permanently_attached = permanently_attached
         end
     }
 }
+--[[
+    待办：
+    天赋类
+]]
+---@class Capability.perk
+Capability.perk = {
+    getter = {
+    },
+    setter = {
+    }
+}
+
 ---@class Capability.Component 组件类
 ---@field id number 组件ID
 ---@field entity_id number 实体ID
@@ -653,7 +689,6 @@ Capability.Component = {
     }
 }
 
-
 -------------------------------------------------------------------------------------------
 --[[
     内部私有类，不暴露构造函数
@@ -669,6 +704,7 @@ Capability.Component = {
 ---@method set_value2(variable_name:string,value:any) void 设置组件值
 ---@method get_object(object_name:string) Component 获取组件对象
 ---@method get_object_value(object_name:string,variable_name:string) string 获取结构体字段值
+---@method set_comp_enable(enabled)  设置组件启用
 local Component = class("Component",nil,Capability.Component)
 
 ---@class ComponentFactory
@@ -716,6 +752,11 @@ function Component:get_object(object_name)
     end
     return setmetatable(M,M)
 end
+---@param enabled boolean
+function Component:set_comp_enable(enabled)
+    EntitySetComponentIsEnabled(self.entity_id,self.id,enabled)
+end
+
 
 function Component:init(entity_id,comp_id)
     rawset(self,"entity_id",entity_id)
@@ -791,6 +832,8 @@ end
 ---@method remove_tag(tag:string) void 移除实体标签
 ---@method add_child(child:yoiEntity.Entity|number) void 添加子实体
 ---@method remove_child(child:yoiEntity.Entity|number) void 移除子实体
+---@method set_comp_enable(comp:Component,enabled:boolean) 设置组件启用？
+---@method set_comps_enable(tag:string,enabled:boolean) 设置一类组件启用
 ---@method add_comp(type_name:string,table_of_comp_values:table,tags?:string,enabled?:boolean) number 添加组件
 ---@method add_variable_comp(table_of_comp_values:table,tags?:string,enabled?:boolean) number 添加变量存储组件
 ---@method add_lua_comp(table_of_comp_values:table,tags?:string,enabled?:boolean) number 添加Lua组件
@@ -811,7 +854,8 @@ end
 local Entity = class("Entity",nil,Capability.Entity)
 function Entity:init(eid)
     if eid == nil then 
-        error("Entity:init: eid is nil")
+        L.logger:error("Entity:init: eid is nil")
+        return
     end
     rawset(self,"id",eid)
 end
@@ -850,6 +894,7 @@ local Action_Card=class("Action_Card",Item,
 )
 -- 法杖类
 ---@class yoiEntity.Wand : yoiEntity.Item, Capability.wand_ability,Capability.wand_sprite
+---@method get_empty_slots() number[] 法杖的法术
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
 ---@method get_actions() yoiEntity.Action_Card[] 获取法术(按照位置排序好)
@@ -869,6 +914,7 @@ local Perk = class("Perk",Entity,Capability.position)
 ---@field Player yoiEntity.Player|fun(eid:number):yoiEntity.Player 玩家类
 ---@field Perk yoiEntity.Perk|fun(eid:number):yoiEntity.Perk 天赋类
 ---@field Action_Card yoiEntity.Action_Card|fun(eid:number):yoiEntity.Action_Card 法术类
+---@field set_logger fun(newlogger:table) 设置新的logger
 local M = {
     Entity = Entity,
     Item = Item,
@@ -877,7 +923,9 @@ local M = {
     Wand = Wand,
     Perk = Perk,
     Action_Card = Action_Card,
-    Logger = Logger,
+    set_logger = function(newlogger)
+        L.logger = newlogger
+    end
 }
 
 
@@ -890,7 +938,7 @@ end
 -- 是否存活
 function Entity:is_living()
     if self.id == nil then
-        logger:warn("实体不存在")
+        L.logger:warn("实体不存在")
         return false
     end
     -- if EntityGetIsAlive(self.id) then
@@ -922,6 +970,22 @@ function Entity:remove_child(child)
     if child_id and child_id~=0 then
         EntityRemoveFromParent(child_id)
     end
+end
+---@param comp number|Component  组件ID
+---@param enabled boolean
+function Entity:set_comp_enable(comp,enabled)
+    local comp_id 
+    if type(comp) == "number" then
+        comp_id = comp 
+    elseif type(comp) == "table" then
+        comp_id = comp.id
+    end
+    EntitySetComponentIsEnabled(self.id,comp_id,enabled)
+end
+---@param enabled boolean
+---@param tag string
+function Entity:set_comps_enable(tag,enabled)
+    EntitySetComponentsWithTagEnabled(self.id,tag,enabled)
 end
 
 
@@ -978,7 +1042,7 @@ function Entity:get_comp(type_name,including_disabled,tag)
         end
     end
     if not comp then 
-        logger:warn("未查找到组件" .. type_name)
+        L.logger:warn("未查找到组件" .. type_name)
         return nil
     end
     -- 提供一个可以读写的代理表
@@ -1070,7 +1134,7 @@ function Entity:get_comps(type_name,including_disabled,tag)
         end
     end
     if not comps then 
-        logger:warn("未查找到组件" .. type_name)
+        L.logger:warn("未查找到组件" .. type_name)
         return nil 
     end
     local proxies = {}
@@ -1093,10 +1157,10 @@ function Entity:variable_comps(including_disabled,tag)
 end
 function Animals:is_living()
     if self.id == nil then
-        logger:warn("实体不存在")
+        L.logger:warn("实体不存在")
         return false
     elseif not EntityGetIsAlive(self.id) then
-        logger:warn("实体未存活")
+        L.logger:warn("实体未存活")
         return false
     end
     return true
@@ -1109,7 +1173,7 @@ function Animals:add_game_effect(effect_name,frames)
     if comp ~= nil then
         comp.frames = frames or -1
     else
-        logger:warn("获取" .. effect_name .. "失败")
+        L.logger:warn("获取" .. effect_name .. "失败")
     end
     return comp
 end
@@ -1188,8 +1252,6 @@ function Item:set_ui_info(info)
         end
     end
 end
-
-
 -- 获取法术id
 ---@return string|nil  法术id  
 function Action_Card:get_action_id()
@@ -1200,67 +1262,109 @@ function Action_Card:get_action_id()
     end
     return nil 
 end
+
+---降序表，最小的格子在最后
+---@return number[] 
+function Wand:get_empty_slots()
+    local empty_slots = {}
+    local cards,cards_permanent = self:get_actions()
+    local cards_slots = {}
+    for _,card in ipairs(cards) do 
+        cards_slots[card.inventory_slot.x] = true
+    end 
+    local count = 0 
+    for i = (self.deck_capacity - #cards_permanent - 1),0,-1 do
+        if cards_slots[i] ~= true then
+            count = count +1 
+            empty_slots[count] = i 
+        end
+    end
+    return empty_slots
+end
 ---@param action_id string 法术的大写ID
 ---@param dont_add_when_full? boolean 是否在满时不添加
+---@param slot_x? number 法术的位置，默认添加于空位
 ---@return yoiEntity.Action_Card|nil
-function Wand:add_action(action_id,dont_add_when_full)
+function Wand:add_action(action_id,dont_add_when_full,slot_x)
     if( action_id == "" ) then return nil end
     if (dont_add_when_full) then
-        local ability_comp = self:ability_comp(true) 
-        if( ability_comp ~= nil ) then
-            local n = #(EntityGetAllChildren(self.id,"card_action") or {})
-            if n== self.deck_capacity then
-                return  nil 
-            end
+        local n = #(EntityGetAllChildren(self.id,"card_action") or {})
+        if n== self.deck_capacity then
+            return nil
         end
     end
 	local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
 
-    local action_slot = {}
-    local pos = 0 
-    local cards = self:get_actions()
-    for _,card in ipairs(cards) do
-        action_slot[card.inventory_slot] = true
-    end
-    for i = 0,self.deck_capacity do
-        if not action_slot[i] then
-            pos = i
-            break
-        end
-    end
+    local empty_slots = self:get_empty_slots()
     self:add_child(action_entity)
-    action_entity.inventory_slot = {x=pos,y=1}
+    if slot_x~=nil  then
+        action_entity.inventory_slot = {x=slot_x}
+    elseif #empty_slots > 0 then
+        local slot = empty_slots[#empty_slots]
+        action_entity.inventory_slot = {x=slot}
+    end
+
 	if action_entity.id ~= 0 then
-		EntitySetComponentsWithTagEnabled( action_entity.id, "enabled_in_world", false )
+        action_entity:set_comps_enable("enabled_in_world",false)
 	end
     return action_entity
 end
-function Wand:add_action_permanent(action_id)
+---@param actions string[] 法术
+---@param dont_add_when_full? boolean
+function Wand:add_actions(actions,dont_add_when_full)
+    local n = #(EntityGetAllChildren(self.id,"card_action") or {})
+    local empty_slots = self:get_empty_slots()
+    for i,action_id in ipairs(actions) do 
+        if (dont_add_when_full) then        
+            if n+i > self.deck_capacity then
+                return  
+            end
+        end
+        local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
+        self:add_child(action_entity)
+        local empty_slots_n = #empty_slots
+        if empty_slots_n > 0 then
+            local slot = empty_slots[empty_slots_n]
+            action_entity.inventory_slot = {x=slot}
+            empty_slots[empty_slots_n] = nil 
+        end
+        if action_entity.id ~= 0 then
+            action_entity:set_comps_enable("enabled_in_world",false)
+	    end
+    end
+end
+---@param action_id string
+---@param slot_x? number
+function Wand:add_action_permanent(action_id,slot_x)
     if( action_id == "" ) then return 0 end
 	local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
     self:add_child(action_entity)
-	-- we need to add a slot to the ability_comp
-    
-	local ability_comp = self:ability_comp(true) 
-	if( ability_comp ~= nil ) then
-        if self.deck_capacity then
-            self.deck_capacity = self.deck_capacity +1
-        end     
-	end
+    if self.deck_capacity then
+        self.deck_capacity = self.deck_capacity +1
+    end     
 	local item_component = action_entity:item_comp(true) 
 	if( item_component ~= nil ) then
         item_component.permanently_attached = true
 	end
+    if slot_x then
+        action_entity.inventory_slot = {x = slot_x}
+    end
 	if action_entity ~= nil then
-		EntitySetComponentsWithTagEnabled( action_entity.id, "enabled_in_world", false )
+        action_entity:set_comps_enable("enabled_in_world",false)
 	end
 end
----@return yoiEntity.Action_Card[]
+---@return yoiEntity.Action_Card[] 普通法术,yoiEntity.Action_Card[] 永久法术
 function Wand:get_actions()
     local actions = EntityGetAllChildren(self.id)
     local cards = {}
+    local cards_permanent = {}
     for i,v in ipairs(actions or {}) do
-        table.insert(cards, M.Action_Card(v)) 
+        local card = M.Action_Card(v)
+        if card.permanently_attached == true then
+            table.insert(cards_permanent,card)
+        else
+            table.insert(cards,card)
+        end
     end
     --将actions排序
     table.sort(cards,function(a,b)
@@ -1268,9 +1372,13 @@ function Wand:get_actions()
         local b_x = b.inventory_slot and b.inventory_slot.x or -1
         return a_x < b_x
     end)
-    return cards
+    table.sort(cards_permanent,function(a,b)
+        local a_x = a.inventory_slot and a.inventory_slot.x or -1
+        local b_x = b.inventory_slot and b.inventory_slot.x or -1
+        return a_x < b_x
+    end)
+    return cards,cards_permanent
 end
 
 return M
-
 
