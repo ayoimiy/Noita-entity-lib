@@ -525,12 +525,116 @@ Capability.item ={
     }
 }
 ---@class Capability.action
----@field action_id string|nil
+---@field action_id string|nil  修改其会改变除了在世界显示的图像以外的法术属性
+---@field name string|nil 只读
+---@field description string|nil 只读
+---@field sprite string|nil  在世界的图像路径(法术标识)
+---@field sprite_unidentified string|nil 只读，不知道什么用_
+---@field type number|nil @readonly常量,只读
+---@field spawn_level string|nil 只读
+---@field spawn_probability number|nil 只读
+---@field price number|nil 只读
+---@field related_projectiles string[]|nil 只读
+---@field action function|nil 执行的函数 只读
+---@field max_uses number|nil 最大可用次数,只读
+---@field uses_remaining number|nil 当前可用次数,默认为-1
+---@field custom_xml_file string|nil 只读，法术在法杖内，法杖产生的例子效果等(如黑洞的紫色光粒)
+
+
+local _actions_cache = {}
+setmetatable(_actions_cache,{
+    __index = function(self,key)
+        if not next(self) then
+            dofile_once("data/scripts/gun/gun_enums.lua")
+            dofile_once("data/scripts/gun/gun_actions.lua")
+            for i,v in ipairs(actions or {}) do 
+                self[v.id] = v 
+            end
+        end
+        return rawget(self,key)
+    end
+})
 Capability.action = {
     getter = {
-
+        action_id = function (self)
+            local comp = self:item_action_comp(true)
+            return comp and comp.action_id
+        end,
+        name= function (self)
+            local data = _actions_cache[self.action_id]
+            return data and GameTextGetTranslatedOrNot(data.name or "")
+        end,
+        description = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and GameTextGetTranslatedOrNot(data.description or "")
+        end,
+        type  = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.type
+        end,
+        spawn_level = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.spawn_level
+        end,
+        spawn_probability = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.spawn_probability
+        end,
+        price = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.price
+        end,
+        related_projectiles = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.related_projectiles
+        end,
+        action = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.action 
+        end,
+        max_uses = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and (data.max_uses or -1 )
+        end,
+        uses_remaining = function (self)
+            local comp = self:item_comp(true)
+            return comp and comp.uses_remaining
+        end,
+        sprite = function (self)
+            local comp = self:sprite_comp(true,"item_identified")
+            return comp and comp.image_file
+        end,
+        sprite_unidentified = function (self)
+            local data = _actions_cache[self.action_id]
+            return data and data.sprite_unidentified
+        end,
+        custom_xml_file = function (self)
+            local data = _actions_cache[self.action_id] 
+            return data and data.custom_xml_file
+        end
     },
     setter = {
+        action_id = function (self,action_id)
+            local comp = self:item_action_comp(true)
+            if not comp then
+                error("action: 获取 item_action_comp 对象失败")
+            end
+            comp.action_id = action_id
+        end,
+        uses_remaining = function (self,uses_remaining)
+            local comp  = self:item_comp(true)
+            if not comp then            
+                error("action: 获取 item_comp 对象失败")
+            end
+            comp.uses_remaining = uses_remaining
+        end,
+        sprite = function (self,image_file)
+            local comp = self:sprite_comp(true,"item_identified")
+            if not comp then 
+                error("action: 获取 sprite_comp 对象失败")
+            end
+            comp.image_file = image_file 
+        end
     }
 }
 ---@class Capability.Component 组件类
@@ -740,9 +844,10 @@ local Item = class("Item",Entity,
 )
 
 -- 法术类
----@class yoiEntity.Action_Card:yoiEntity.Item
----@method get_action_id() string|nil 获取法术ID
-local Action_Card=class("Action_Card",Item)
+---@class yoiEntity.Action_Card:yoiEntity.Item,Capability.action
+local Action_Card=class("Action_Card",Item,
+    Capability.action
+)
 -- 法杖类
 ---@class yoiEntity.Wand : yoiEntity.Item, Capability.wand_ability,Capability.wand_sprite
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
@@ -774,6 +879,7 @@ local M = {
     Action_Card = Action_Card,
     Logger = Logger,
 }
+
 
 function Entity:kill()
     if self:is_living() then
@@ -1122,12 +1228,8 @@ function Wand:add_action(action_id,dont_add_when_full)
             break
         end
     end
-
-
     self:add_child(action_entity)
     action_entity.inventory_slot = {x=pos,y=1}
-
-
 	if action_entity.id ~= 0 then
 		EntitySetComponentsWithTagEnabled( action_entity.id, "enabled_in_world", false )
 	end
