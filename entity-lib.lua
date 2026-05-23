@@ -680,15 +680,53 @@ Capability.action = {
 }
 --[[
     待办：
-    天赋类
+    天赋类 name = "perk_id",
 ]]
 ---@class Capability.perk
+---@field perk_id string  天赋ID
+---@field count number 已捡起的天赋数量
 Capability.perk = {
     getter = {
-
+        perk_id = function(self)
+            local comps = self:variable_comps(true)
+            for i,comp in ipairs(comps or {}) do 
+                if comp.name == "perk_id" then
+                    return comp.value_string
+                end
+            end
+            logger:warn("获取perk_id失败")
+            return nil 
+        end,
+        count = function(self)
+            local perk_id = self.perk_id             
+            local flag = string.format("PERK_PICKED_%s_PICKUP_COUNT",perk_id)
+            return tonumber(GlobalsGetValue(flag,"0"))
+        end,
+        ui_name = function (self)
+            
+        end,
+        ui_description = function (self)
+            
+        end,
+        ui_icon = function (self)
+            
+        end,
+        perk_icon = function (self)
+            
+        end,
+        remove_other_perk = function (self)
+            
+        end,
+        game_effect = function (self)
+            
+        end,
+        
 
     },
     setter = {
+
+
+
     }
 }
 
