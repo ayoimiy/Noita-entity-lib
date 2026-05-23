@@ -94,7 +94,37 @@ local function class(_class_name,base,...)
     add_capability(_class,...)
     return _class
 end
-
+-------------------------------------------------------------------------------------------
+--[[
+    数据缓存表
+]]
+--法术数据缓存
+local _actions_cache = {}
+setmetatable(_actions_cache,{
+    __index = function(self,key)
+        if not next(self) then
+            dofile_once("data/scripts/gun/gun_enums.lua")
+            dofile_once("data/scripts/gun/gun_actions.lua")
+            for i,v in ipairs(actions or {}) do 
+                self[v.id] = v 
+            end
+        end
+        return rawget(self,key)
+    end
+})
+--天赋数据缓存
+local _perks_cache = {}
+setmetatable(_perks_cache,{
+    __index = function(self,key) 
+        if not next(self) then
+            dofile_once( "data/scripts/perks/perk_list.lua" )
+            for i,v in ipairs(perk_list or {}) do 
+                self[v.id] = v 
+            end
+        end
+        return rawget(self,key)
+    end
+})
 
 -------------------------------------------------------------------------------------------
 --能力
@@ -551,19 +581,6 @@ Capability.item ={
 ---@field uses_remaining number|nil 当前可用次数,默认为-1
 ---@field custom_xml_file string|nil 只读，法术在法杖内，法杖产生的例子效果等(如黑洞的紫色光粒)
 ---@field permanently_attached boolean|nil 是否为永久法术
-local _actions_cache = {}
-setmetatable(_actions_cache,{
-    __index = function(self,key)
-        if not next(self) then
-            dofile_once("data/scripts/gun/gun_enums.lua")
-            dofile_once("data/scripts/gun/gun_actions.lua")
-            for i,v in ipairs(actions or {}) do 
-                self[v.id] = v 
-            end
-        end
-        return rawget(self,key)
-    end
-})
 Capability.action = {
     getter = {
         action_id = function (self)
@@ -668,6 +685,8 @@ Capability.action = {
 ---@class Capability.perk
 Capability.perk = {
     getter = {
+
+
     },
     setter = {
     }
@@ -815,7 +834,6 @@ function Component:set_object_value2(object_name,variable_name,...)
     ComponentObjectSetValue2(self.id,object_name,variable_name,...)
 end
 
-
 ---------------------------------------------------------------------------------------------
 --[[
     公开类，对外暴露
@@ -915,6 +933,7 @@ local Perk = class("Perk",Entity,Capability.position)
 ---@field Perk yoiEntity.Perk|fun(eid:number):yoiEntity.Perk 天赋类
 ---@field Action_Card yoiEntity.Action_Card|fun(eid:number):yoiEntity.Action_Card 法术类
 ---@field set_logger fun(newlogger:table) 设置新的logger
+---@method spawn_action_card(action_id:string):yoiEntity.Action_Card|nil  
 local M = {
     Entity = Entity,
     Item = Item,
@@ -927,6 +946,76 @@ local M = {
         L.logger = newlogger
     end
 }
+---@param action_id string 法术ID
+---@param x number?  
+---@param y number?
+---@return yoiEntity.Action_Card|nil 
+function M:spawn_action_card(action_id,x,y)
+    local ex = x or 0 
+    local ey = y or 0 
+    local eid = CreateItemActionEntity( action_id,ex,ey)
+    if eid == nil or eid == 0 then
+        logger:warn("法术ID无效")
+       return nil 
+    end
+    return M.Action_Card(eid)
+end
+---@param perk_id string
+---@param x number
+---@param y number
+---@param dont_remove_other_perks? boolean
+function M:spawn_perk(perk_id,x,y,dont_remove_other_perks)
+    local data = _perks_cache[perk_id]
+    if not data then 
+        logger:warn("天赋ID无效")
+        return nil 
+    end
+    local eid = EntityLoad( "data/entities/items/pickup/perk.xml", x, y )
+    if eid == nil then
+        logger:warn("无法生成实体")
+        return
+    end
+    local perk = M.Perk(eid)
+    perk:add_comp("SpriteComponent",{
+        image_file = data.perk_icon or "data/items_gfx/perk.xml",  
+		offset_x = 8, 
+		offset_y = 8, 
+		update_transform = true,
+		update_transform_rotation = false,
+    })
+    perk:add_comp("UIInfoComponent",{
+        name = data.ui_name,
+    })
+    perk:add_comp("ItemComponent",{
+        item_name = data.ui_name,
+		ui_description = data.ui_description,
+		ui_display_description_on_pick_up_hint = true,
+		play_spinning_animation = false,
+		play_hover_animation = true,
+		play_pick_sound = true,        
+    })
+    perk:add_comp("SpriteOffsetAnimatorComponent",{
+        sprite_id=-1 ,
+        x_amount= 0 ,
+        x_phase= 0 ,
+        x_phase_offset=0 ,
+        x_speed=0 ,
+        y_amount=2 ,
+        y_speed=3,    
+    })
+    perk:add_comp("VariableStorageComponent",{
+        name = "perk_id",
+		value_string = data.id,
+    })
+    if dont_remove_other_perks then
+        perk:add_comp("VariableStorageComponent",{
+            name="perk_dont_remove_others",
+			value_bool=true,
+        })
+    end
+end
+
+
 
 
 function Entity:kill()
@@ -1293,8 +1382,11 @@ function Wand:add_action(action_id,dont_add_when_full,slot_x)
             return nil
         end
     end
-	local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
-
+    local action_entity = M:spawn_action_card(action_id)
+    if action_entity == nil then
+        logger:error("提供的actions存在错误")
+        return nil 
+    end
     local empty_slots = self:get_empty_slots()
     self:add_child(action_entity)
     if slot_x~=nil  then
@@ -1320,7 +1412,11 @@ function Wand:add_actions(actions,dont_add_when_full)
                 return  
             end
         end
-        local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
+        local action_entity =M:spawn_action_card(action_id)
+        if action_entity == nil then
+            logger:error("提供的actions存在错误")
+            break 
+        end
         self:add_child(action_entity)
         local empty_slots_n = #empty_slots
         if empty_slots_n > 0 then
@@ -1337,7 +1433,13 @@ end
 ---@param slot_x? number
 function Wand:add_action_permanent(action_id,slot_x)
     if( action_id == "" ) then return 0 end
-	local action_entity = M.Action_Card(CreateItemActionEntity( action_id ))
+	local action_entity = M:spawn_action_card(action_id)
+    if action_entity == nil then
+        logger:error("无法获取" .. action_entity .. " 法术")
+        return 
+    end
+
+
     self:add_child(action_entity)
     if self.deck_capacity then
         self.deck_capacity = self.deck_capacity +1
