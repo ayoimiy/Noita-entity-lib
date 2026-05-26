@@ -685,48 +685,140 @@ Capability.action = {
 ---@class Capability.perk
 ---@field perk_id string  天赋ID
 ---@field count number 已捡起的天赋数量
+---@field ui_name string 天赋在界面上显示的名字（可读）
+---@field ui_description string 天赋在界面上的描述（可读）
+---@field ui_icon string 屏幕右上角的天赋图标路径（可读）
+---@field perk_icon string 地图上的天赋图标路径（可读）
+---@field remove_other_perks string[] 获取后从天赋池中移除的其他天赋ID列表（可读）
+---@field one_off_effect string 一次性效果（可读）
+---@field game_effect string 游戏效果，如爆炸免疫（可读）
+---@field game_effect2 string 第二个游戏效果（可读）
+---@field particle_effect string 粒子效果（可读）
+---@field stackable boolean 天赋是否可堆叠（可读）
+---@field stackable_how_often_reappears number 天赋序列中至少间隔几个才会再次出现，stackable为false时启用（可读）
+---@field stackable_is_rare boolean 是否标记为稀有天赋，稀有天赋在序列中只出现一次，stackable为false时启用（可读）
+---@field stackable_maximum number 最大可堆叠数量，stackable为false时启用（可读）
+---@field max_in_perk_pool number 天赋池中的最大数量（可读）
+---@field usable_by_enemies boolean 是否可以被敌人使用（可读）
+---@field func function 拾取天赋时调用的函数，参数(entity_perk_item, entity_who_picked, item_name)（可读）
+---@field func_remove function 天赋被移除时调用的函数，参数同上（可读）
+---@field func_enemy function 天赋在敌人身上的特殊效果函数，参数同上（可读）
+---@field not_in_default_perk_pool boolean 是否不在默认天赋池中生成，默认false（可读）
+---@field do_not_remove boolean 是否不会被天赋祭坛移除（可读）
 Capability.perk = {
     getter = {
         perk_id = function(self)
             local comps = self:variable_comps(true)
-            for i,comp in ipairs(comps or {}) do 
-                if comp.name == "perk_id" then
+            for i,comp in ipairs(comps or {}) do
+                if comp.name == 'perk_id' then
                     return comp.value_string
                 end
             end
-            logger:warn("获取perk_id失败")
-            return nil 
+            logger:warn('获取perk_id失败')
+            return nil
         end,
         count = function(self)
-            local perk_id = self.perk_id             
-            local flag = string.format("PERK_PICKED_%s_PICKUP_COUNT",perk_id)
-            return tonumber(GlobalsGetValue(flag,"0"))
+            local perk_id = self.perk_id
+            local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
+            return tonumber(GlobalsGetValue(flag,'0'))
         end,
         ui_name = function (self)
-            
+            local data = _perks_cache[self.perk_id]
+            return data and data.ui_name
         end,
         ui_description = function (self)
-            
+            local data = _perks_cache[self.perk_id]
+            return data and data.ui_description
         end,
         ui_icon = function (self)
-            
+            local data = _perks_cache[self.perk_id]
+            return data and data.ui_icon
         end,
         perk_icon = function (self)
-            
+            local data = _perks_cache[self.perk_id]
+            return data and data.perk_icon
         end,
-        remove_other_perk = function (self)
-            
+        remove_other_perks = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.remove_other_perks
+        end,
+        one_off_effect = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.one_off_effect
         end,
         game_effect = function (self)
-            
+            local data = _perks_cache[self.perk_id]
+            return data and data.game_effect
         end,
-        
-
+        game_effect2 = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.game_effect2
+        end,
+        particle_effect = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.particle_effect
+        end,
+        stackable = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.stackable
+        end,
+        stackable_how_often_reappears = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.stackable_how_often_reappears
+        end,
+        stackable_is_rare = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.stackable_is_rare
+        end,
+        stackable_maximum = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.stackable_maximum
+        end,
+        max_in_perk_pool = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.max_in_perk_pool
+        end,
+        usable_by_enemies = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.usable_by_enemies
+        end,
+        func = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.func
+        end,
+        func_remove = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.func_remove
+        end,
+        func_enemy = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.func_enemy
+        end,
+        not_in_default_perk_pool = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.not_in_default_perk_pool
+        end,
+        do_not_remove = function (self)
+            local data = _perks_cache[self.perk_id]
+            return data and data.do_not_remove
+        end,
     },
     setter = {
-
-
-
+        perk_id = function (self,perk_id)
+            local comps = self:variable_comps(true)
+            for i,comp in ipairs(comps or {}) do
+                if comp.name == 'perk_id' then
+                    comp.value_string = perk_id
+                    return
+                end
+            end
+            logger:error("无法找到对应的perk_id")
+        end,
+        count = function (self,count)
+            local perk_id = self.perk_id
+            local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
+            GlobalsSetValue(flag,tostring(count))
+        end
     }
 }
 
@@ -762,6 +854,7 @@ Capability.Component = {
 ---@method get_object(object_name:string) Component 获取组件对象
 ---@method get_object_value(object_name:string,variable_name:string) string 获取结构体字段值
 ---@method set_comp_enable(enabled)  设置组件启用
+---@method add_tag(tag:string) 增加flag
 local Component = class("Component",nil,Capability.Component)
 
 ---@class ComponentFactory
@@ -776,7 +869,7 @@ local ComponentFactory = {
 --- 操作普通属性
 ---@param entity_id number 
 ---@param comp_id number 
----@return table 代理表proxy
+---@return any 代理表proxy
 function ComponentFactory:new(entity_id,comp_id)
     local comp = Component(entity_id,comp_id)
     local proxy = {}
@@ -871,6 +964,11 @@ end
 function Component:set_object_value2(object_name,variable_name,...)
     ComponentObjectSetValue2(self.id,object_name,variable_name,...)
 end
+---@param tag string 组件标签
+function Component:add_tag(tag)
+    ComponentAddTag(self.id,tag)
+end
+
 
 ---------------------------------------------------------------------------------------------
 --[[
@@ -908,18 +1006,30 @@ end
 ---@method lua_comps(including_disabled?:boolean,tag?:string) Component[]|nil 获取所有Lua组件(返回组件代理表数组)
 ---@method variable_comps(including_disabled?:boolean,tag?:string) Component[]|nil 获取所有变量存储组件(返回组件代理表数组)
 local Entity = class("Entity",nil,Capability.Entity)
-function Entity:init(eid)
-    if eid == nil then 
+---@param entity number|string 
+---@param x? number
+---@param y? number
+function Entity:init(entity,x,y)
+    if entity == nil or entity == 0 then 
         L.logger:error("Entity:init: eid is nil")
         return
     end
-    rawset(self,"id",eid)
+    if type(entity) == "string" then
+        x = x or 0 
+        y = y or 0 
+        local eid = EntityLoad(entity,x,y)
+        self:init(eid)
+        return
+    end
+    rawset(self,"id",entity)
 end
 
 -- 动物类
 ---@class yoiEntity.Animals : yoiEntity.Entity, Capability.damage_model, Capability.herd_id,Capability.position
 ---@method is_living() boolean 重写：判断实体是否存活
 ---@method add_game_effect(effect_name:string,frames:number) Component|nil 添加游戏效果
+---@method pick_up_perk(perk:yoiEntity.Perk|number,do_cosmetic_fx:boolean,kill_other_perks:boolean)
+---@method ingest_material(material_name:string,frames:number) 吃材料
 local Animals = class("Animals",Entity,
     Capability.damage_model,
     Capability.herd_id,
@@ -932,6 +1042,7 @@ local Animals = class("Animals",Entity,
 ---@method get_mouse_pos_in_screen(gui:userdata) number,number 获取鼠标屏幕坐标
 ---@method pick_up_item(item:yoiEntity.Entity|number) void 拾取物品
 ---@method get_wand_held() yoiEntity.Wand 获取手持法杖
+---@method pick_up_perk(perk:yoiEntity.Perk|number,do_cosmetic_fx:boolean,kill_other_perks:boolean) 拾取天赋 
 local Player = class("Player",Animals)
 
 -- 物品类
@@ -959,19 +1070,24 @@ local Wand = class("Wand",Item,
     Capability.wand_sprite
 )
 --天赋类
----@class yoiEntity.Perk:yoiEntity.Entity,Capability.position
-local Perk = class("Perk",Entity,Capability.position)
+---@class yoiEntity.Perk:yoiEntity.Entity,Capability.position,Capability.perk
+local Perk = class("Perk",Entity,
+    Capability.position,
+    Capability.perk
+)
 
 -- 暴露的函数
 ---@class yoiEntity    
----@field Entity yoiEntity.Entity|fun(eid:number):yoiEntity.Entity
----@field Item yoiEntity.Item|fun(eid:number):yoiEntity.Item 物品类
----@field Animals yoiEntity.Animals|fun(eid:number):yoiEntity.Animals   动物类
----@field Player yoiEntity.Player|fun(eid:number):yoiEntity.Player 玩家类
----@field Perk yoiEntity.Perk|fun(eid:number):yoiEntity.Perk 天赋类
----@field Action_Card yoiEntity.Action_Card|fun(eid:number):yoiEntity.Action_Card 法术类
+---@field Entity yoiEntity.Entity|fun(entity:number|string,x?:number,y?:number):yoiEntity.Entity
+---@field Item yoiEntity.Item|fun(entity:number|string,x?:number,y?:number):yoiEntity.Item 物品类
+---@field Animals yoiEntity.Animals|fun(entity:number|string,x?:number,y?:number):yoiEntity.Animals   动物类
+---@field Player yoiEntity.Player|fun(entity:number|string,x?:number,y?:number):yoiEntity.Player 玩家类
+---@field Perk yoiEntity.Perk|fun(entity:number|string,x?:number,y?:number):yoiEntity.Perk 天赋类
+---@field Action_Card yoiEntity.Action_Card|fun(entity:number|string,x?:number,y?:number):yoiEntity.Action_Card 法术类
 ---@field set_logger fun(newlogger:table) 设置新的logger
 ---@method spawn_action_card(action_id:string):yoiEntity.Action_Card|nil  
+---@method spawn_perk()
+---@method load()
 local M = {
     Entity = Entity,
     Item = Item,
@@ -982,8 +1098,9 @@ local M = {
     Action_Card = Action_Card,
     set_logger = function(newlogger)
         L.logger = newlogger
-    end
+    end,
 }
+
 ---@param action_id string 法术ID
 ---@param x number?  
 ---@param y number?
@@ -1051,8 +1168,14 @@ function M:spawn_perk(perk_id,x,y,dont_remove_other_perks)
 			value_bool=true,
         })
     end
+    return perk
 end
-
+---@param name string ??
+---@return yoiEntity.Entity|nil
+function M:EntityCreateNew(name)
+    local eid = EntityCreateNew(name)
+    return M.Entity(eid)
+end
 
 
 
@@ -1118,13 +1241,13 @@ end
 
 ---给实体添加组件
 ---@param type_name string 组件类型名
----@param table_of_comp_values table 组件的键值表
+---@param table_of_comp_values? table 组件的键值表
 ---@param tags? string  组件tags,以逗号分割
 ---@param enabled? boolean 是否启用
 ---@return number 组件ID
 function Entity:add_comp(type_name,table_of_comp_values,tags,enabled)
     local t = {}
-    for k,v in pairs(table_of_comp_values) do
+    for k,v in pairs(table_of_comp_values or {}) do
         t[k] = v
     end
     if tags ~= nil then t.tags = tags end
@@ -1282,6 +1405,9 @@ end
 function Entity:variable_comps(including_disabled,tag)
     return self:get_comps("VariableStorageComponent",including_disabled,tag)
 end
+
+
+
 function Animals:is_living()
     if self.id == nil then
         L.logger:warn("实体不存在")
@@ -1293,17 +1419,61 @@ function Animals:is_living()
     return true
 end
 --- 设置效果
----@param effect_name string
-function Animals:add_game_effect(effect_name,frames)
-    local comp_id = GetGameEffectLoadTo(self.id,effect_name,true)
+---@param effect_name string 效果名
+---@param frames? number 持续帧数
+---@param always_load_new? boolean 默认为true
+---@return GameEffectComponent,yoiEntity.Entity
+function Animals:add_game_effect(effect_name,frames,always_load_new)
+    local comp_id,eid = GetGameEffectLoadTo(self.id,effect_name,always_load_new or true)
     local comp = ComponentFactory:new(self.id,comp_id) 
     if comp ~= nil then
         comp.frames = frames or -1
     else
         L.logger:warn("获取" .. effect_name .. "失败")
     end
-    return comp
+    return comp,M.Entity(eid)
 end
+---@param perk yoiEntity.Perk|string
+function Animals:pick_up_perk(perk)
+    local pos = self.pos
+    if type(perk) == "string" then
+        perk = Perk(perk)
+    end
+    --赋予效果
+    if perk.game_effect ~= nil then
+        self:add_game_effect(perk.game_effect,-1)
+    end
+
+    --效果
+    if perk.func_enemy ~= nil then
+        perk.func_enemy(perk.id,self.id)
+    else
+        perk.func(perk.id,self.id)
+    end
+
+    --添加UI
+    local entity = M.Entity( "data/entities/misc/perks/enemy_icon.xml",pos.x,pos.y)
+    local comp = entity:sprite_comp(true)
+    comp.image_file = perk.ui_icon
+    self:add_child(entity)
+    
+    perk:kill()
+end
+
+---@param material string|number 若为材料的name,则会自动通过CellFactory_GetType(name)转id
+---@param count number 吃掉的单位数
+function Animals:ingest_material(material,count)
+    local mat_id 
+    if type(material) == "string" then
+        mat_id = CellFactory_GetType(material)
+    else
+        mat_id = material
+    end
+    EntityIngestMaterial(self.id,mat_id,count)
+end
+
+
+
 ---获取鼠标位置
 function Player:get_mouse_pos()
     return DEBUG_GetMouseWorld()
@@ -1340,6 +1510,162 @@ function Player:get_wand_held()
 	end
 	return nil
 end
+---@param perk yoiEntity.Perk|string
+---@param do_cosmetic_fx? boolean
+---@param kill_other_perks? boolean 是否清除范围其他天赋
+function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
+    local pos  = {}
+    if type(perk) == "string" then
+        perk = M.Perk(perk)
+        pos = self.pos
+    else
+        pos = perk.pos
+    end
+    local data = _actions_cache[perk.perk_id]
+    if data == nil then
+        logger:warn("无法获取对应data")
+        return 
+    end
+    
+    --全局数据
+    perk.count = perk.count + 1 
+    local add_progress_flags = not GameHasFlagRun( "no_progress_flags_perk" )
+    local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk.id)
+    if add_progress_flags then
+		local flag_name_persistent = string.lower( flag )
+		if ( not HasFlagPersistent( flag_name_persistent ) ) then
+			GameAddFlagRun( "new_" .. flag_name_persistent )
+		end
+		AddFlagPersistent( flag_name_persistent )
+	end
+	GameAddFlagRun( flag)
+
+    --标记是否可移除
+    local no_remove = perk.do_not_remove or false
+
+    --执行天赋效果
+    if perk.game_effect ~= nil then
+        local comp,entity = self:add_game_effect(perk.game_effect,-1,true)
+        if no_remove == false then
+            comp:add_tag("perk_component")
+            entity:add_tag("perk_entity")
+        end
+    end
+    if perk.game_effect2 ~= nil then
+        local comp,entity = self:add_game_effect(perk.game_effect2,-1,true)
+        if no_remove == false then
+            comp:add_tag("perk_component")
+            entity:add_tag("perk_entity")
+        end
+    end
+
+    --首次添加时的例子效果
+    if perk.particle_effect ~= nil and  perk.count <=1 then
+        local entity = M.Entity("data/entities/particles/perks/" .. perk.particle_effect .. ".xml")
+        if no_remove == false then
+            entity:add_tag("perk_entity")
+        end
+        self:add_child(entity)
+    end
+    --标记同类天赋
+    for i,v in ipairs( perk.remove_other_perks or {} ) do
+        local f =string.format('PERK_PICKED_%s_PICKUP_COUNT',v)
+        GameAddFlagRun( f )
+        -- NOTE( Petri ): 8.8.2023 - Thank you to Noita community for this fix. 
+        -- this should remove the related perks from the perk pool. 4realz.
+        local remove_perk_pickup_count = tonumber( GlobalsGetValue( f .. "_PICKUP_COUNT", "0" ) )
+        remove_perk_pickup_count = remove_perk_pickup_count + 1
+        GlobalsSetValue( f .. "_PICKUP_COUNT", tostring( remove_perk_pickup_count ) )
+	end
+    --func
+    if perk.func ~=nil then
+        perk.func(perk.id,self.id,perk.perk_id,perk.count)
+    end
+    ---UI图标
+    local entity_ui = M:EntityCreateNew("")
+    if entity_ui == nil then
+        logger:warn("无法生成entity_ui")
+        return 
+    end
+    entity_ui:add_comp("UIIconComponent",{
+        name = perk.name,
+        description = perk.ui_description,
+        icon_sprite_file = perk.ui_icon,
+    })
+ 
+    
+
+    if no_remove == false then
+        entity_ui:add_tag("perk_entity")
+    end
+    self:add_child(entity_ui)
+
+    
+
+    --杀戮和非杀戮？
+    local enemies_killed = tonumber( StatsBiomeGetValue("enemies_killed") )
+    if do_cosmetic_fx then
+		local enemies_killed = tonumber( StatsBiomeGetValue("enemies_killed") )
+		
+		if( enemies_killed ~= 0 ) then
+			EntityLoad( "data/entities/particles/image_emitters/perk_effect.xml", pos.x, pos.y )
+		else
+			EntityLoad( "data/entities/particles/image_emitters/perk_effect_pacifist.xml", pos.x, pos.y )
+		end
+		
+		GamePrintImportant( GameTextGet( "$log_pickedup_perk", GameTextGetTranslatedOrNot(perk.ui_name) ),perk.ui_description )
+	end
+
+    --获取roll机和其他天赋
+    pos = self.pos
+    local rerolls = EntityGetInRadiusWithTag( pos.x, pos.y, 200, "perk_reroll_machine" )--roll机
+	local other_perks = EntityGetInRadiusWithTag( pos.x, pos.y, 200, "item_perk" )--天赋实体
+
+    local disable_reroll = false
+
+    if (#other_perks <= 1) then
+        disable_reroll = true
+    end
+
+    if kill_other_perks then
+		local perk_destroy_chance = tonumber( GlobalsGetValue( "TEMPLE_PERK_DESTROY_CHANCE", "100" ) )
+		SetRandomSeed( pos.x, pos.y )
+
+		if( Random( 1, 100 ) <= perk_destroy_chance ) then
+			-- removes all the perks
+			local all_perks = EntityGetWithTag( "perk" )
+			disable_reroll = true
+		
+			if ( #all_perks > 0 ) then
+				for i,entity_perk in ipairs(all_perks) do
+					if entity_perk ~= perk.id then
+						EntityKill( entity_perk )
+					end
+				end
+			end
+		end
+	end
+
+    --roll机
+    if disable_reroll == true then
+        for _,roll in ipairs(rerolls) do
+            local eid = M.Entity(roll) 
+            ---@type ItemCostComponent
+            local comp = eid:get_comp("ItemCostComponent")
+            if  comp then
+                comp:set_comp_enable(false)
+            end            
+            local comps = eid:get_comp("SpriteComponent",false,"shop_cost")
+            for _,comp2 in ipairs(comps or {}) do
+                comp2:set_comp_enable(false)
+            end
+            eid:set_comps_enable( "perk_reroll_disable",false)
+        end
+    end
+    perk:kill()
+end
+
+
 
 -- 获取ui
 function Item:get_ui_info()
