@@ -1,8 +1,23 @@
+
+---@class yoiEntity
+---@field Entity yoiEntity.Entity|fun(entity:number|string,x?:number,y?:number):yoiEntity.Entity
+---@field Item yoiEntity.Item|fun(entity:number|string,x?:number,y?:number):yoiEntity.Item 物品类
+---@field Animals yoiEntity.Animals|fun(entity:number|string,x?:number,y?:number):yoiEntity.Animals   动物类
+---@field Player yoiEntity.Player|fun(entity:number|string,x?:number,y?:number):yoiEntity.Player 玩家类
+---@field Perk yoiEntity.Perk|fun(entity:number|string,x?:number,y?:number):yoiEntity.Perk 天赋类
+---@field Action_Card yoiEntity.Action_Card|fun(entity:number|string,x?:number,y?:number):yoiEntity.Action_Card 法术类
+---@method set_logger(newlogger:table) 设置新的logger
+---@method spawn_action_card(action_id:string):yoiEntity.Action_Card|nil  
+---@method spawn_perk()
+---@method load()
+local M = {} 
+---@class yoiEntityIn
+---@field logger any
+local _M = {}
 -------------------------------------------------------------------------------------------
 --[[
     日志部分
 ]]
-local L = {}
 local logger = {}
 function logger:error(msg)
     error(msg)
@@ -10,8 +25,7 @@ end
 function logger:warn(msg)
     GamePrint(msg)
 end
-
-L.logger = logger
+_M.logger = logger
 
 -------------------------------------------------------------------------------------------
 --[[
@@ -76,7 +90,7 @@ local function class(_class_name,base,...)
             setter(self,value)
             return 
         end
-        L.logger:error(_class_name ..  "no such field:"..tostring(key) .. "")
+        _M.logger:error(_class_name ..  "no such field:"..tostring(key) .. "")
     end
     _class._class_name = _class_name
 
@@ -94,6 +108,22 @@ local function class(_class_name,base,...)
     add_capability(_class,...)
     return _class
 end
+---二维向量？
+---@class Vector2D
+---@field x number
+---@field y number
+local Vector2D =class("Vector2D")
+function Vector2D:init(x,y)
+    rawset(self,"x",x)
+    rawset(self,"y",y)
+end
+function Vector2D:unpack()
+    
+end
+
+---@type Vector2D|function
+M.Vector2D = Vector2D
+
 -------------------------------------------------------------------------------------------
 --[[
     数据缓存表
@@ -137,6 +167,7 @@ Capability.position = {
         pos = function (self)
             local x,y = EntityGetTransform(self.id)
             return {x=x,y=y}
+            
         end
     },
     setter = {
@@ -238,7 +269,7 @@ Capability.herd_id={
         herd_id = function (self,herd_id)
             local comp = self:genome_data_comp(true)
             if not comp then
-                L.logger:error("查找herd_id时无法查找到组件")
+                _M.logger:error("查找herd_id时无法查找到组件")
                 return
             end
             comp.herd_id = herd_id
@@ -313,7 +344,7 @@ Capability.wand_ability = {
         deck_capacity = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
                 return
             end
             obj.deck_capacity = value
@@ -321,7 +352,7 @@ Capability.wand_ability = {
         actions_per_round = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
                 return
             end
             obj.actions_per_round = value
@@ -329,7 +360,7 @@ Capability.wand_ability = {
         fire_rate_wait = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
                 return
             end
             obj.fire_rate_wait = value
@@ -337,7 +368,7 @@ Capability.wand_ability = {
         reload_time = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
                 return
             end
             obj.reload_time = value
@@ -345,7 +376,7 @@ Capability.wand_ability = {
         spread_degrees = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
                 return
             end
             obj.spread_degrees = value
@@ -353,7 +384,7 @@ Capability.wand_ability = {
         speed_mul = function (self, value)
             local obj = _gunaction_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gunaction_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
                 return
             end
             obj.speed_multiplier = value
@@ -361,7 +392,7 @@ Capability.wand_ability = {
         shuffle_deck_when_empty = function (self, value)
             local obj = _gun_config(self)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 gun_config 对象")
+                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
                 return
             end
             obj.shuffle_deck_when_empty = value
@@ -369,7 +400,7 @@ Capability.wand_ability = {
         mana_max = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 ability_component")
+                _M.logger:error("wand_ability: 无法获取 ability_component")
                 return
             end
             obj.mana_max = value
@@ -377,7 +408,7 @@ Capability.wand_ability = {
         mana_charge_speed = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 ability_component")
+                _M.logger:error("wand_ability: 无法获取 ability_component")
                 return
             end
             obj.mana_charge_speed = value
@@ -385,7 +416,7 @@ Capability.wand_ability = {
         click_to_use = function (self, value)
             local obj = self:ability_comp(true)
             if not obj then
-                L.logger:error("wand_ability: 无法获取 ability_component")
+                _M.logger:error("wand_ability: 无法获取 ability_component")
                 return
             end
             obj.click_to_use = value
@@ -427,7 +458,7 @@ Capability.wand_sprite = {
         sprite_file = function (self,sprite_file)
             local obj = self:ability_comp(true)
             if not obj then
-                L.logger:error("wand_sprite: 获取 ability_component 失败")
+                _M.logger:error("wand_sprite: 获取 ability_component 失败")
                 return
             end
             obj.sprite_file = sprite_file
@@ -435,7 +466,7 @@ Capability.wand_sprite = {
         image_file = function (self,image_file)
             local comp = self:sprite_comp(true)
             if not comp then
-                L.logger:error("wand_sprite: 获取 sprite_component 失败")
+                _M.logger:error("wand_sprite: 获取 sprite_component 失败")
                 return
             end
             comp.image_file = image_file
@@ -443,7 +474,7 @@ Capability.wand_sprite = {
         sprite_offset = function (self,offset)
             local comp = self:sprite_comp(true)
             if not comp then
-                L.logger:error("wand_sprite: 获取 sprite_component 失败")
+                _M.logger:error("wand_sprite: 获取 sprite_component 失败")
                 return
             end
             comp.offset_x = offset.x or comp.offset_x
@@ -452,7 +483,7 @@ Capability.wand_sprite = {
         hotspot_offset = function (self,offset)
             local comp = self:hotspot_comp(true,"shoot_pos")
             if not comp then
-                L.logger:error("wand_sprite: 获取 hotspot_component 失败")
+                _M.logger:error("wand_sprite: 获取 hotspot_component 失败")
                 return
             end
             local old = self.hotspot_comp 
@@ -515,7 +546,7 @@ Capability.item ={
         item_name = function (self,value)
             local item = self:item_comp(true)
             if not item then
-                L.logger:error("item: 获取 item_comp 对象失败")
+                _M.logger:error("item: 获取 item_comp 对象失败")
                 return
             end
             item.item_name = value
@@ -523,7 +554,7 @@ Capability.item ={
         always_use_item_name_in_ui = function (self,value)
             local item = self:item_comp(true)
             if not item then
-                L.logger:error("item: 获取 item_comp 对象失败")
+                _M.logger:error("item: 获取 item_comp 对象失败")
                 return
             end
             item.always_use_item_name_in_ui = value
@@ -531,7 +562,7 @@ Capability.item ={
         inventory_slot = function (self,pos)
             local item_comp = self:item_comp(true)
             if not item_comp then
-                L.logger:error("item: 获取 item_comp 对象失败")
+                _M.logger:error("item: 获取 item_comp 对象失败")
                 return
             end
             local old_pos = self.inventory_slot
@@ -542,7 +573,7 @@ Capability.item ={
         ui_name = function (self,name)
             local comp = self:ability_comp(true)
             if not comp then
-                L.logger:error("item: 获取 ability_component 对象失败")
+                _M.logger:error("item: 获取 ability_component 对象失败")
                 return
             end
             comp.ui_name = name
@@ -550,7 +581,7 @@ Capability.item ={
         ui_description = function (self,description)
             local comp = self:item_comp(true)
             if not comp then
-                L.logger:error("item: 获取 item_component 对象失败")
+                _M.logger:error("item: 获取 item_component 对象失败")
                 return
             end
             comp.ui_description = description
@@ -558,7 +589,7 @@ Capability.item ={
         ui_sprite = function (self,sprite)
             local comp = self:item_comp(true)
             if not comp then
-                L.logger:error("item: 获取 item_component 对象失败")
+                _M.logger:error("item: 获取 item_component 对象失败")
                 return
             end
             comp.ui_sprite = sprite
@@ -648,7 +679,7 @@ Capability.action = {
         action_id = function (self,action_id)
             local comp = self:item_action_comp(true)
             if not comp then
-                L.logger:error("action: 获取 item_action_comp 对象失败")
+                _M.logger:error("action: 获取 item_action_comp 对象失败")
                 return
             end
             comp.action_id = action_id
@@ -656,7 +687,7 @@ Capability.action = {
         uses_remaining = function (self,uses_remaining)
             local comp  = self:item_comp(true)
             if not comp then            
-                L.logger:error("action: 获取 item_comp 对象失败")
+                _M.logger:error("action: 获取 item_comp 对象失败")
                 return
             end
             comp.uses_remaining = uses_remaining
@@ -664,7 +695,7 @@ Capability.action = {
         sprite = function (self,image_file)
             local comp = self:sprite_comp(true,"item_identified")
             if not comp then 
-                L.logger:error("action: 获取 sprite_comp 对象失败")
+                _M.logger:error("action: 获取 sprite_comp 对象失败")
                 return
             end
             comp.image_file = image_file 
@@ -672,7 +703,7 @@ Capability.action = {
         permanently_attached = function (self,permanently_attached)
             local comp = self:item_comp(true)
             if not comp then
-                L.logger:error("action: 获取permanently_attached对象失败")
+                _M.logger:error("action: 获取permanently_attached对象失败")
             end
             comp.permanently_attached = permanently_attached
         end
@@ -826,7 +857,6 @@ Capability.perk = {
 ---@field max_lifetime number 最大生命周期
 ---@field on_collision_die boolean 碰撞后死亡
 ---@field friendly_fire boolean 友伤
----@field 
 Capability.projectile = {
     getter = {
     
@@ -1025,7 +1055,7 @@ local Entity = class("Entity",nil,Capability.Entity)
 ---@param y? number
 function Entity:init(entity,x,y)
     if entity == nil or entity == 0 then 
-        L.logger:error("Entity:init: eid is nil")
+        _M.logger:error("Entity:init: eid is nil")
         return
     end
     if type(entity) == "string" then
@@ -1095,106 +1125,9 @@ local Perk = class("Perk",Entity,
     Capability.perk
 )
 
--- 暴露的函数
----@class yoiEntity    
----@field Entity yoiEntity.Entity|fun(entity:number|string,x?:number,y?:number):yoiEntity.Entity
----@field Item yoiEntity.Item|fun(entity:number|string,x?:number,y?:number):yoiEntity.Item 物品类
----@field Animals yoiEntity.Animals|fun(entity:number|string,x?:number,y?:number):yoiEntity.Animals   动物类
----@field Player yoiEntity.Player|fun(entity:number|string,x?:number,y?:number):yoiEntity.Player 玩家类
----@field Perk yoiEntity.Perk|fun(entity:number|string,x?:number,y?:number):yoiEntity.Perk 天赋类
----@field Action_Card yoiEntity.Action_Card|fun(entity:number|string,x?:number,y?:number):yoiEntity.Action_Card 法术类
----@field set_logger fun(newlogger:table) 设置新的logger
----@method spawn_action_card(action_id:string):yoiEntity.Action_Card|nil  
----@method spawn_perk()
----@method load()
-local M = {
-    Entity = Entity,
-    Item = Item,
-    Animals = Animals,
-    Player = Player,
-    Wand = Wand,
-    Perk = Perk,
-    Action_Card = Action_Card,
-    set_logger = function(newlogger)
-        L.logger = newlogger
-    end,
-}
 
----@param action_id string 法术ID
----@param x number?  
----@param y number?
----@return yoiEntity.Action_Card|nil 
-function M:spawn_action_card(action_id,x,y)
-    local ex = x or 0 
-    local ey = y or 0 
-    local eid = CreateItemActionEntity( action_id,ex,ey)
-    if eid == nil or eid == 0 then
-        logger:warn("法术ID无效")
-       return nil 
-    end
-    return M.Action_Card(eid)
-end
----@param perk_id string
----@param x number
----@param y number
----@param dont_remove_other_perks? boolean
-function M:spawn_perk(perk_id,x,y,dont_remove_other_perks)
-    local data = _perks_cache[perk_id]
-    if not data then 
-        logger:warn("天赋ID无效")
-        return nil 
-    end
-    local eid = EntityLoad( "data/entities/items/pickup/perk.xml", x, y )
-    if eid == nil then
-        logger:warn("无法生成实体")
-        return
-    end
-    local perk = M.Perk(eid)
-    perk:add_comp("SpriteComponent",{
-        image_file = data.perk_icon or "data/items_gfx/perk.xml",  
-		offset_x = 8, 
-		offset_y = 8, 
-		update_transform = true,
-		update_transform_rotation = false,
-    })
-    perk:add_comp("UIInfoComponent",{
-        name = data.ui_name,
-    })
-    perk:add_comp("ItemComponent",{
-        item_name = data.ui_name,
-		ui_description = data.ui_description,
-		ui_display_description_on_pick_up_hint = true,
-		play_spinning_animation = false,
-		play_hover_animation = true,
-		play_pick_sound = true,        
-    })
-    perk:add_comp("SpriteOffsetAnimatorComponent",{
-        sprite_id=-1 ,
-        x_amount= 0 ,
-        x_phase= 0 ,
-        x_phase_offset=0 ,
-        x_speed=0 ,
-        y_amount=2 ,
-        y_speed=3,    
-    })
-    perk:add_comp("VariableStorageComponent",{
-        name = "perk_id",
-		value_string = data.id,
-    })
-    if dont_remove_other_perks then
-        perk:add_comp("VariableStorageComponent",{
-            name="perk_dont_remove_others",
-			value_bool=true,
-        })
-    end
-    return perk
-end
----@param name string ??
----@return yoiEntity.Entity|nil
-function M:EntityCreateNew(name)
-    local eid = EntityCreateNew(name)
-    return M.Entity(eid)
-end
+
+
 
 
 
@@ -1207,7 +1140,7 @@ end
 -- 是否存活
 function Entity:is_living()
     if self.id == nil then
-        L.logger:warn("实体不存在")
+        _M.logger:warn("实体不存在")
         return false
     end
     -- if EntityGetIsAlive(self.id) then
@@ -1311,7 +1244,7 @@ function Entity:get_comp(type_name,including_disabled,tag)
         end
     end
     if not comp then 
-        L.logger:warn("未查找到组件" .. type_name)
+        _M.logger:warn("未查找到组件" .. type_name)
         return nil
     end
     -- 提供一个可以读写的代理表
@@ -1403,7 +1336,7 @@ function Entity:get_comps(type_name,including_disabled,tag)
         end
     end
     if not comps then 
-        L.logger:warn("未查找到组件" .. type_name)
+        _M.logger:warn("未查找到组件" .. type_name)
         return nil 
     end
     local proxies = {}
@@ -1429,10 +1362,10 @@ end
 
 function Animals:is_living()
     if self.id == nil then
-        L.logger:warn("实体不存在")
+        _M.logger:warn("实体不存在")
         return false
     elseif not EntityGetIsAlive(self.id) then
-        L.logger:warn("实体未存活")
+        _M.logger:warn("实体未存活")
         return false
     end
     return true
@@ -1448,7 +1381,7 @@ function Animals:add_game_effect(effect_name,frames,always_load_new)
     if comp ~= nil then
         comp.frames = frames or -1
     else
-        L.logger:warn("获取" .. effect_name .. "失败")
+        _M.logger:warn("获取" .. effect_name .. "失败")
     end
     return comp,M.Entity(eid)
 end
@@ -1827,6 +1760,97 @@ function Wand:get_actions()
     end)
     return cards,cards_permanent
 end
+
+-------------------------------------------------------------------------------------------
+
+-- 暴露的函数
+M.Entity = Entity 
+M.Item = Item
+M.Animals = Animals
+M.Player = Player
+M.Wand = Wand
+M.Perk = Perk
+M.Action_Card = Action_Card
+---@param newlogger table
+function M:set_logger(newlogger)
+    _M.logger = newlogger
+end
+---@param action_id string 法术ID
+---@param x number?  
+---@param y number?
+---@return yoiEntity.Action_Card|nil 
+function M:spawn_action_card(action_id,x,y)
+    local ex = x or 0 
+    local ey = y or 0 
+    local eid = CreateItemActionEntity( action_id,ex,ey)
+    if eid == nil or eid == 0 then
+        logger:warn("法术ID无效")
+       return nil 
+    end
+    return M.Action_Card(eid)
+end
+---@param perk_id string
+---@param x number
+---@param y number
+---@param dont_remove_other_perks? boolean
+function M:spawn_perk(perk_id,x,y,dont_remove_other_perks)
+    local data = _perks_cache[perk_id]
+    if not data then 
+        logger:warn("天赋ID无效")
+        return nil 
+    end
+    local eid = EntityLoad( "data/entities/items/pickup/perk.xml", x, y )
+    if eid == nil then
+        logger:warn("无法生成实体")
+        return
+    end
+    local perk = M.Perk(eid)
+    perk:add_comp("SpriteComponent",{
+        image_file = data.perk_icon or "data/items_gfx/perk.xml",  
+		offset_x = 8, 
+		offset_y = 8, 
+		update_transform = true,
+		update_transform_rotation = false,
+    })
+    perk:add_comp("UIInfoComponent",{
+        name = data.ui_name,
+    })
+    perk:add_comp("ItemComponent",{
+        item_name = data.ui_name,
+		ui_description = data.ui_description,
+		ui_display_description_on_pick_up_hint = true,
+		play_spinning_animation = false,
+		play_hover_animation = true,
+		play_pick_sound = true,        
+    })
+    perk:add_comp("SpriteOffsetAnimatorComponent",{
+        sprite_id=-1 ,
+        x_amount= 0 ,
+        x_phase= 0 ,
+        x_phase_offset=0 ,
+        x_speed=0 ,
+        y_amount=2 ,
+        y_speed=3,    
+    })
+    perk:add_comp("VariableStorageComponent",{
+        name = "perk_id",
+		value_string = data.id,
+    })
+    if dont_remove_other_perks then
+        perk:add_comp("VariableStorageComponent",{
+            name="perk_dont_remove_others",
+			value_bool=true,
+        })
+    end
+    return perk
+end
+---@param name string ??
+---@return yoiEntity.Entity|nil
+function M:EntityCreateNew(name)
+    local eid = EntityCreateNew(name)
+    return M.Entity(eid)
+end
+
 
 return M
 
