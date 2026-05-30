@@ -821,6 +821,20 @@ Capability.perk = {
         end
     }
 }
+---@class Capability.projectile
+---@field lifetime number 当前生命时长
+---@field max_lifetime number 最大生命周期
+---@field on_collision_die boolean 碰撞后死亡
+---@field friendly_fire boolean 友伤
+---@field 
+Capability.projectile = {
+    getter = {
+    
+    },
+    setter = {
+    }
+}
+
 
 ---@class Capability.Component 组件类
 ---@field id number 组件ID
@@ -1047,8 +1061,6 @@ local Player = class("Player",Animals)
 
 -- 物品类
 ---@class yoiEntity.Item:yoiEntity.Entity,Capability.item,Capability.position
----@method get_ui_info() table 获取物品UI信息
----@method set_ui_info(info:table) void 设置物品UI信息
 local Item = class("Item",Entity,
     Capability.item,
     Capability.position
@@ -1061,7 +1073,7 @@ local Action_Card=class("Action_Card",Item,
 )
 -- 法杖类
 ---@class yoiEntity.Wand : yoiEntity.Item, Capability.wand_ability,Capability.wand_sprite
----@method get_empty_slots() number[] 法杖的法术
+---@method get_empty_slots() number[] 获取法杖空位置，升序排列
 ---@method add_action(action_id:string,dont_add_when_full:boolean) void 添加法术
 ---@method add_action_permanent(action_id:string) void 添加永久法术
 ---@method get_actions() yoiEntity.Action_Card[] 获取法术(按照位置排序好)
@@ -1069,6 +1081,13 @@ local Wand = class("Wand",Item,
     Capability.wand_ability,
     Capability.wand_sprite
 )
+--- 投射物类
+--- @class yoiEntity.Projectile:yoiEntity.Entity,Capability.position
+local Projectile = class("Projectile",Entity,
+    Capability.position
+)
+
+
 --天赋类
 ---@class yoiEntity.Perk:yoiEntity.Entity,Capability.position,Capability.perk
 local Perk = class("Perk",Entity,
@@ -1667,44 +1686,7 @@ end
 
 
 
--- 获取ui
-function Item:get_ui_info()
-    local info = {}
-    local ItemComp = self:item_comp(true)
-    if ItemComp then
-        -- 在物品栏的ui
-        info.ui_description = ItemComp.ui_description
-        -- 在物品栏的ui
-        info.ui_sprite  = ItemComp.ui_sprite
-    end
-    local Ability_comp = self:ability_comp(true)
-    if Ability_comp then
-        info.ui_name =Ability_comp.ui_name
-    end
-    return info
-end
--- 修改ui 
-function Item:set_ui_info(info)
-    -- GamePrint(tostring(self.id))
-    if info.ui_description or info.ui_sprite then
-        local ItemComp = self:item_comp(true)
-        if ItemComp then
-            if info.ui_description then
-                ItemComp.ui_description = info.ui_description
-            end
-            if info.ui_sprite then
-                ItemComp.ui_sprite = info.ui_sprite
-            end
-        end
-    --  GamePrint("ItemComp:"..ItemComp)
-    end
-    if info.ui_name then
-        local Ability_comp = self:ability_comp(true)
-        if Ability_comp then
-            Ability_comp.ui_name = info.ui_name
-        end
-    end
-end
+
 -- 获取法术id
 ---@return string|nil  法术id  
 function Action_Card:get_action_id()
