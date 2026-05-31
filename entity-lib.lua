@@ -8,6 +8,7 @@
 ---@field Perk yoiEntity.Perk|fun(str:number|string,pos?:Vector2D):yoiEntity.Perk 天赋类
 ---@field Wand yoiEntity.Wand|fun(entity:number|string,pos?:Vector2D)):yoiEntity.Wand
 ---@field Action_Card yoiEntity.Action_Card|fun(str:number|string,pos?:Vector2D):yoiEntity.Action_Card 法术类
+---@field Projectile yoiEntity.Projectile|fun(entity:number|string,pos?:Vector2D):yoiEntity.Projectile 弹丸类
 ---@method set_logger(newlogger:table) 设置新的logger
 local M = {} 
 
@@ -246,7 +247,7 @@ end
 ---@return table{getter:table,setter:table}
 local function merge_cap(...)
     local setter,getter = {},{}
-    for _,cap in ({...})  do
+    for _,cap in  ipairs({...})  do
         for name,fn in pairs(cap.getter or {}) do
             getter[name] = fn
         end
@@ -258,6 +259,7 @@ local function merge_cap(...)
         getter = getter,
         setter = setter
     }
+    
 end
 ---@param cache table 缓存表
 ---@param get_key function 获取缓存key
@@ -658,7 +660,7 @@ local function _damage_critical(self)
     return comp and comp:get_object("damage_critical")
 end
 
----@class Capability.projectile
+---@class Capability.Projectile
 ---@field lifetime number 当前生命时长
 ---@field max_lifetime number 最大生命周期
 ---@field on_collision_die boolean 碰撞后死亡
@@ -709,7 +711,7 @@ Capability.projectile = merge_cap(
         _damage_critical,
         {
             critical_chance = "chance",
-            critical_mul = "damage_muliplier"
+            critical_mul = "damage_multiplier"
         }
     )
 )
@@ -998,8 +1000,8 @@ local Wand = class("Wand",Item,
     Capability.wand_ability,
     Capability.wand_sprite
 )
---- 投射物类
---- @class yoiEntity.Projectile:yoiEntity.Entity,Capability.position,Capability.projectile,Capability.velocity
+---投射物类
+---@class yoiEntity.Projectile:yoiEntity.Entity,Capability.position,Capability.Projectile,Capability.velocity
 local Projectile = class("Projectile",Entity,
     Capability.position,
     Capability.projectile,
@@ -1723,6 +1725,7 @@ M.Player = Player
 M.Wand = Wand
 M.Perk = Perk
 M.Action_Card = Action_Card
+M.Projectile = Projectile
 ---@param newlogger table
 function M:set_logger(newlogger)
     _M.logger = newlogger
