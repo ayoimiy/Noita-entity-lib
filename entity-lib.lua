@@ -653,11 +653,13 @@ Capability.perk = merge_cap(
         }
     }
 )
-
+local function _damage_critical(self)
+    local comp = self:get_comp("ProjectileComponent",true)
+    return comp and comp:get_object("damage_critical")
+end
 
 ---@class Capability.projectile
 ---@field lifetime number 当前生命时长
----@field lifetime_add number 增加的生命时长
 ---@field max_lifetime number 最大生命周期
 ---@field on_collision_die boolean 碰撞后死亡
 ---@field friendly_fire boolean 友伤
@@ -667,14 +669,54 @@ Capability.perk = merge_cap(
 ---@field critical_mul number 暴击倍率
 ---@field who_shot   number 射出者
 Capability.projectile = merge_cap(
----TODO: 添加更多属性
-
-
+    cap_fields(
+        function (self) return self:get_comp("ProjectileComponent",true) end,
+        {
+            lifetime = true,  
+            friendly_fire = true,
+            on_collision_die = true,
+            damage = {
+                get = function (self,comp)
+                    local damage_by_type = ComponentObjectGetMembers(comp.id,"damage_by_type")
+                    local damages = DamageType()
+                    for type_name,v in pairs(damage_by_type or {}) do
+                        damages[type_name] = tonumber(v)
+                    end
+                    damages.projectile = comp.damage                    
+                    return damages
+                end,
+                set = function (self,comp,damages)
+                    local damage_by_type = comp:get_object("damage_by_type")
+                    for type_name,v in pairs(damages or {}) do
+                        if type_name == "projectile" then
+                            comp.damage = v
+                        else
+                            damage_by_type[type_name] = v
+                        end                       
+                    end                    
+                end
+            },
+            who_shot = "mWhoShot" ,
+        }
+    ),
+    cap_fields(
+        function (self) return self:get_comp("LifetimeComponent",true) end,
+        {
+            max_lifetime = "lifetime",            
+        }
+    ),
+    cap_fields(
+        _damage_critical,
+        {
+            critical_chance = "chance",
+            critical_mul = "damage_muliplier"
+        }
+    )
 )
 ---@class Capability.velocity
 ---@field velocity Vector2D 
 Capability.velocity = cap_fields(
-    function(self) return self:get_comp("VelocityComponent") end ,
+    function(self) return self:get_comp("VelocityComponent",true) end ,
     {
         velocity = {
             get = function (self,comp)
@@ -957,9 +999,11 @@ local Wand = class("Wand",Item,
     Capability.wand_sprite
 )
 --- 投射物类
---- @class yoiEntity.Projectile:yoiEntity.Entity,Capability.position
+--- @class yoiEntity.Projectile:yoiEntity.Entity,Capability.position,Capability.projectile,Capability.velocity
 local Projectile = class("Projectile",Entity,
-    Capability.position
+    Capability.position,
+    Capability.projectile,
+    Capability.velocity
 )
 
 
