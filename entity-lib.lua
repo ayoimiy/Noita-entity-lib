@@ -59,7 +59,12 @@ local function class(_class_name,base,...)
         --实现构造函数，创建实例直接用call即可，并且子类只需要写字段的初始化，而无需new 
         __call = function (c,...)
             local obj = setmetatable({},c)
-            if obj.init then obj:init(...) end
+            if obj.init then 
+                local r =obj:init(...) 
+                if r == false then
+                    return nil
+                end
+            end
             return obj
         end
     })    
@@ -870,7 +875,7 @@ local Entity = class("Entity",nil,Capability.Entity)
 function Entity:init(entity,pos)
     if entity == nil or entity == 0 then 
         _M.logger:error("Entity:init: eid is nil")
-        return
+        return false
     end
     if type(entity) == "string" then
         pos = pos or Vector2D(0,0)
@@ -925,18 +930,19 @@ function Action_Card:init(str,pos)
             local eid = CreateItemActionEntity(str,pos:unpack())
             if eid == nil or eid == 0 then
                 _M.logger:error("法术ID无效")
-                return nil 
+                return false
             end
             self:init(eid)
             return
         else
             _M.logger:error("无效的法术卡ID:" .. str)
-            return nil
+            return false
         end
     elseif type(str) == "number" then
         Item.init(self,str,pos)
     else
         _M.logger:error("Action_Card:init: str is not string or number")
+        return false
     end    
 end
 
@@ -975,7 +981,7 @@ function Perk:init(str,pos,dont_remove_other_perks)
             local eid = EntityLoad( "data/entities/items/pickup/perk.xml", pos:unpack())
             if eid == nil then
                 _M.logger:error("天赋ID无效")
-                return
+                return false
             end
             self:init(eid)
             self:add_comp("SpriteComponent",{
@@ -1018,12 +1024,13 @@ function Perk:init(str,pos,dont_remove_other_perks)
             return 
         else
             _M.logger:error("无效的天赋ID:" .. str)
-            return
+            return false
         end
     elseif type(str) == "number" then
         Entity.init(self,str,pos)
     else
         _M.logger:error("Perk:init: str is not string or number")
+        return false
     end
 end
 
@@ -1297,7 +1304,7 @@ function Animals:pick_up_perk(perk)
     --效果
     if perk.func_enemy ~= nil then
         perk.func_enemy(perk.id,self.id)
-    else
+    elseif perk.func ~= nil then
         perk.func(perk.id,self.id)
     end
 
@@ -1380,7 +1387,7 @@ function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
     --全局数据
     perk.count = perk.count + 1 
     local add_progress_flags = not GameHasFlagRun( "no_progress_flags_perk" )
-    local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk.id)
+    local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk.perk_id)
     if add_progress_flags then
 		local flag_name_persistent = string.lower( flag )
 		if ( not HasFlagPersistent( flag_name_persistent ) ) then
@@ -1453,7 +1460,6 @@ function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
     
 
     --杀戮和非杀戮？
-    local enemies_killed = tonumber( StatsBiomeGetValue("enemies_killed") )
     if do_cosmetic_fx then
 		local enemies_killed = tonumber( StatsBiomeGetValue("enemies_killed") )
 		
@@ -1616,7 +1622,7 @@ function Wand:add_action_permanent(action_id,slot_x)
     if( action_id == "" ) then return 0 end
 	local action_entity = M.Action_Card(action_id)
     if action_entity == nil then
-        _M.logger:error("无法获取" .. action_entity .. " 法术")
+        _M.logger:error("无法获取" .. action_id .. " 法术")
         return 
     end
     self:add_child(action_entity)
