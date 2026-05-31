@@ -1,18 +1,16 @@
 
 ---@class yoiEntity
----@field Entity yoiEntity.Entity|fun(entity:number|string,x?:number,y?:number):yoiEntity.Entity
----@field Item yoiEntity.Item|fun(entity:number|string,x?:number,y?:number):yoiEntity.Item 物品类
----@field Animals yoiEntity.Animals|fun(entity:number|string,x?:number,y?:number):yoiEntity.Animals   动物类
----@field Player yoiEntity.Player|fun(entity:number|string,x?:number,y?:number):yoiEntity.Player 玩家类
----@field Perk yoiEntity.Perk|fun(entity:number|string,x?:number,y?:number):yoiEntity.Perk 天赋类
----@field Action_Card yoiEntity.Action_Card|fun(entity:number|string,x?:number,y?:number):yoiEntity.Action_Card 法术类
+---@field Vector2D Vector2D|fun(x:number,y:number):Vector2D 二维向量
+---@field Entity yoiEntity.Entity|fun(entity:number|string,pos?:Vector2D):yoiEntity.Entity
+---@field Item yoiEntity.Item|fun(entity:number|string,pos?:Vector2D):yoiEntity.Item 物品类
+---@field Animals yoiEntity.Animals|fun(entity:number|string,pos?:Vector2D):yoiEntity.Animals   动物类
+---@field Player yoiEntity.Player|fun(entity:number|string,pos?:Vector2D):yoiEntity.Player 玩家类
+---@field Perk yoiEntity.Perk|fun(str:number|string,pos?:Vector2D):yoiEntity.Perk 天赋类
+---@field Wand yoiEntity.Wand|fun(entity:number|string,pos?:Vector2D)):yoiEntity.Wand
+---@field Action_Card yoiEntity.Action_Card|fun(str:number|string,pos?:Vector2D):yoiEntity.Action_Card 法术类
 ---@method set_logger(newlogger:table) 设置新的logger
----@method spawn_action_card(action_id:string):yoiEntity.Action_Card|nil  
----@method spawn_perk()
----@method load()
 local M = {} 
----@class yoiEntityIn
----@field logger any
+
 local _M = {}
 -------------------------------------------------------------------------------------------
 --[[
@@ -108,21 +106,51 @@ local function class(_class_name,base,...)
     add_capability(_class,...)
     return _class
 end
----二维向量？
+---二维向量
 ---@class Vector2D
----@field x number
----@field y number
+---@field x number 默认为0
+---@field y number 默认为0
+---@method unpack()
 local Vector2D =class("Vector2D")
+Vector2D.__add = function (a,b)
+    return Vector2D(a.x+b.x,a.y+b.y)
+end
 function Vector2D:init(x,y)
-    rawset(self,"x",x)
-    rawset(self,"y",y)
+    rawset(self,"x",x or 0)
+    rawset(self,"y",y or 0)
 end
 function Vector2D:unpack()
-    
+    return self.x,self.y
+end
+---伤害类型
+---@class DamageType
+---@field melee number|nil 
+---@field projectile number|nil
+---@field explosion number|nil
+---@field electricity number|nil
+---@field fire number|nil
+---@field drill number|nil
+---@field slice number|nil
+---@field ice number|nil
+---@field healing number|nil
+---@field physics_hit number|nil
+---@field radioactive number|nil
+---@field poison number|nil
+---@field overeating number|nil
+---@field curse number|nil
+---@field holy number|nil
+local DamageType = setmetatable({},{
+    __call = function(self,...)
+        local t = {}
+        setmetatable(t,self)
+        return t
+    end
+})
+DamageType.__index = function (self,key)
+    return nil
 end
 
----@type Vector2D|function
-M.Vector2D = Vector2D
+
 
 -------------------------------------------------------------------------------------------
 --[[
@@ -157,25 +185,117 @@ setmetatable(_perks_cache,{
 })
 
 -------------------------------------------------------------------------------------------
+
+---函数
+---@param get_comp fun(self) 组件
+---@param fields table 字段名
+---@param error_msg? string 错误信息
+---@return table{getter:table,setter:table}
+local function cap_fields(get_comp,fields,error_msg)
+    local getter,setter = {},{}
+    for name,cap in pairs(fields) do 
+        if type(cap) == "table" and (cap.get or cap.set) then
+            --自定义处理
+            if cap.get then
+                getter[name] = function (self)
+                    local c = get_comp(self)
+                    return c and cap.get(self,c)
+                end
+            end
+            if cap.set then 
+                setter[name] = function (self,v)
+                    local c = get_comp(self)
+                    if c then 
+                        cap.set(self,c,v)
+                    elseif error_msg then 
+                        _M.logger:error(error_msg)
+                    else
+                        _M.logger:error("no such component:"..tostring(name))
+                    end
+                end
+            end 
+        else
+            --为字段
+            local target = type(cap) == "string" and cap or name
+            getter[name] = function (self)
+                local c = get_comp(self)
+                return c and c[target]
+            end
+            setter[name] = function (self,v)
+                local c = get_comp(self)
+                if c then 
+                    c[target] = v
+                elseif error_msg then 
+                    _M.logger:error(error_msg)
+                else
+                    _M.logger:error("no such component:"..tostring(cap))
+                end
+            end
+        end
+    end
+    return {
+        getter = getter,
+        setter = setter
+    }
+end
+---@return table{getter:table,setter:table}
+local function merge_cap(...)
+    local setter,getter = {},{}
+    for _,cap in ({...})  do
+        for name,fn in pairs(cap.getter or {}) do
+            getter[name] = fn
+        end
+        for name,fn in pairs(cap.setter or {}) do
+            setter[name] = fn
+        end
+    end
+    return {
+        getter = getter,
+        setter = setter
+    }
+end
+---@param cache table 缓存表
+---@param get_key function 获取缓存key
+---@param fields table 字段
+---@return table {getter:table,setter:table}
+local function _cache_data_cap(cache,get_key,fields)
+    local getter = {}
+    for name,cap in pairs(fields) do
+        if type(cap) == "table" and (cap.get) then
+            getter[name] = function (self)
+                return cap.get(self,cache,get_key(self))
+            end
+        else
+            local key = type(cap) == "string" and cap or name
+            getter[name] = function (self)
+                local data = cache[get_key(self)]
+                return data and data[key]
+            end
+        end
+    end
+
+
+    return {
+        getter = getter
+    }
+end
+
+
 --能力
 local Capability = {
 }
 ---@class Capability.position 
----@field pos table{x:number,y:number} 坐标
+---@field pos Vector2D 坐标
 Capability.position = {
     getter = { 
         pos = function (self)
             local x,y = EntityGetTransform(self.id)
-            return {x=x,y=y}
-            
+            return Vector2D(x,y)            
         end
     },
     setter = {
         pos = function (self,pos)
-            local old = self.pos
-            local x = pos.x or old.x 
-            local y = pos.y or old.y 
-            EntitySetTransform(self.id,x,y)
+            EntitySetTransform(self.id,pos:unpack())
         end
     }
 }
@@ -213,69 +333,50 @@ Capability.Entity = {
     }
 }
 
+local function _damage_multipliers(self)
+    local comp = self:damagemodel_comp(true)
+    return comp and comp:get_object("damage_multipliers")
+end
+
 ---@class Capability.damage_model
 ---@field hp number|nil
 ---@field max_hp number|nil
 ---@field damage_muls table|nil
-Capability.damage_model ={
-    getter ={
-        hp = function (self)
-            local damagemodel = self:damagemodel_comp(true)
-            return damagemodel and  damagemodel.hp
-        end,
-        max_hp = function (self)
-            local damagemodel = self:damagemodel_comp(true)
-            return damagemodel and  damagemodel.max_hp
-        end,
-        damage_muls = function (self)
-            local comp = self:damagemodel_comp(true)
-            return comp and ComponentObjectGetMembers(comp.id,"damage_multipliers")
-        end
-    },
-    setter = {
-        hp = function (self,hp)
-            local damagemodel = self:damagemodel_comp(true)
-            if not damagemodel then return nil end
-            damagemodel.hp = hp 
-        end,
-        max_hp = function (self,max_hp)
-            local damagemodel = self:damagemodel_comp(true)
-            if not damagemodel then 
-                return nil 
+Capability.damage_model = merge_cap(
+    cap_fields(function(self)  return self:damagemodel_comp(true) end ,{
+            hp = true,
+            max_hp = true,
+        },
+        "无法获取对应damage_model组件"
+    ),
+    cap_fields(_damage_multipliers,{
+        damage_muls = {
+            get = function (self,comp)
+                local damage_muls = ComponentObjectGetMembers(comp.id,"damage_multipliers") or {}
+                local damage = DamageType()
+                for k,v in pairs(damage_muls) do
+                    damage[k] = v and tonumber(v)
+                end
+                return damage
+            end,
+            set  = function (self,comp,damage_muls)
+                for k,v in pairs(damage_muls) do
+                    comp[k] = v 
+                end
             end
-            damagemodel.max_hp = max_hp
-        end,
-        damage_muls = function (self,damage_muls)
-            local comp = self:damagemodel_comp(true)
-            if not comp then return nil end
-            local damage_multipliers = comp:get_object("damage_multipliers")
-            if not damage_multipliers  then return nil end 
-            for type,mul in pairs(damage_muls) do
-                damage_multipliers[type] =mul
-            end
-        end
-    }
-}
+            }
+        },
+        "无法获取对应的damage_multipliers对象"
+    )   
+)
 ---@class Capability.herd_id
 ---@field herd_id number|nil
-Capability.herd_id={
-    getter = {
-        herd_id = function (self)
-            local comp = self:genome_data_comp(true)
-            return comp and  comp.herd_id
-        end
-    },
-    setter= {
-        herd_id = function (self,herd_id)
-            local comp = self:genome_data_comp(true)
-            if not comp then
-                _M.logger:error("查找herd_id时无法查找到组件")
-                return
-            end
-            comp.herd_id = herd_id
-        end
-    }
-}
+Capability.herd_id = cap_fields(
+    function(self) return self:genome_data_comp(true) end,
+    {herd_id = true},
+    "无法获取GenomeDataComponent组件"
+)
+
 ---@class Capability.wand_ability
 ---@field deck_capacity number|nil  法杖容量
 ---@field actions_per_round number|nil 施法数
@@ -297,305 +398,115 @@ local function _gunaction_config(self)
     local comp = self:ability_comp(true)
     return comp and  comp:get_object("gunaction_config")
 end
-Capability.wand_ability = { 
-    getter = {
-        deck_capacity = function (self)
-            local obj = _gun_config(self)
-            return obj and obj.deck_capacity
-        end,
-        actions_per_round = function (self)
-            local obj = _gun_config(self)
-            return obj and obj.actions_per_round
-        end,
-        fire_rate_wait = function (self)        
-            local obj = _gunaction_config(self)
-            return obj and obj.fire_rate_wait
-        end,
-        reload_time = function (self)
-            local obj = _gun_config(self)
-            return obj and obj.reload_time
-        end,
-        spread_degrees = function (self)
-            local obj = _gunaction_config(self)
-            return obj and obj.spread_degrees
-        end,
-        speed_mul = function (self)
-            local obj = _gunaction_config(self)
-            return obj and obj.speed_multiplier
-        end,
-        shuffle_deck_when_empty = function (self)
-            local obj = _gun_config(self)
-            return obj and obj.shuffle_deck_when_empty
-        end,
-        mana_max = function (self)
-            local obj = self:ability_comp(true)
-            return obj and obj.mana_max
-        end,
-        mana_charge_speed = function (self)
-            local obj = self:ability_comp(true)
-            return obj and obj.mana_charge_speed
-        end,
-        click_to_use = function (self)
-            local obj = self:ability_comp(true)
-            return obj and obj.click_to_use
-        end
-    },
-    setter  = {
-        deck_capacity = function (self, value)
-            local obj = _gun_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
-                return
-            end
-            obj.deck_capacity = value
-        end,
-        actions_per_round = function (self, value)
-            local obj = _gun_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
-                return
-            end
-            obj.actions_per_round = value
-        end,
-        fire_rate_wait = function (self, value)
-            local obj = _gunaction_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
-                return
-            end
-            obj.fire_rate_wait = value
-        end,
-        reload_time = function (self, value)
-            local obj = _gun_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
-                return
-            end
-            obj.reload_time = value
-        end,
-        spread_degrees = function (self, value)
-            local obj = _gunaction_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
-                return
-            end
-            obj.spread_degrees = value
-        end,
-        speed_mul = function (self, value)
-            local obj = _gunaction_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gunaction_config 对象")
-                return
-            end
-            obj.speed_multiplier = value
-        end,
-        shuffle_deck_when_empty = function (self, value)
-            local obj = _gun_config(self)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 gun_config 对象")
-                return
-            end
-            obj.shuffle_deck_when_empty = value
-        end,
-        mana_max = function (self, value)
-            local obj = self:ability_comp(true)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 ability_component")
-                return
-            end
-            obj.mana_max = value
-        end,
-        mana_charge_speed = function (self, value)
-            local obj = self:ability_comp(true)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 ability_component")
-                return
-            end
-            obj.mana_charge_speed = value
-        end,
-        click_to_use = function (self, value)
-            local obj = self:ability_comp(true)
-            if not obj then
-                _M.logger:error("wand_ability: 无法获取 ability_component")
-                return
-            end
-            obj.click_to_use = value
-        end
-    }
-}
 
+Capability.wand_ability = merge_cap(
+    cap_fields(function(self) return self:ability_comp(true) end,{
+            mana_max = true,
+            mana_charge_speed = true,
+            click_to_use = true
+        },
+        "无法获取AbilityComponent组件"
+    ),
+    cap_fields(_gun_config,{
+            deck_capacity = true,
+            actions_per_round = true,
+            reload_time = true,
+            shuffle_deck_when_empty = true,
+        },
+        "无法获取AbilityComponent组件或其gun_config对象"
+    ),
+    cap_fields(_gunaction_config,{
+            fire_rate_wait = true,
+            spread_degrees = true,
+            speed_mul = "speed_multiplier",       
+        },
+        "无法获取AbilityComponent组件或其gunaction_config对象"
+    )
+)
 
 ---@class Capability.wand_sprite
 ---@field sprite_file string|nil 法杖在背包显示的图像路径
 ---@field image_file string|nil 法杖在手上显示的图像路径
----@field sprite_offset table|nil 法杖在手上显示的图像偏移
----@field hotspot_offset table|nil 法杖在手上显示的图像热点偏移(即发射法术的地方)
-Capability.wand_sprite = {
-    getter = {
-        sprite_file = function (self)
-            local obj = self:ability_comp(true)            
-            return obj and obj.sprite_file
-        end,
-        image_file = function (self)
-            local comp = self:sprite_comp(true)
-            return comp and comp.image_file
-        end,
-        sprite_offset = function (self)
-            local comp = self:sprite_comp(true)
-            if not comp then return nil end
-            local x = comp.offset_x
-            local y = comp.offset_y
-            return {x=x,y=y}
-        end,
-        hotspot_offset = function (self)
-            local comp = self:hotspot_comp(true,"shoot_pos")
-            if not comp then return nil end
-            local x,y = comp:get_value2("offset")
-            return {x=x,y=y}
-        end
-    },
-    setter = {
-        sprite_file = function (self,sprite_file)
-            local obj = self:ability_comp(true)
-            if not obj then
-                _M.logger:error("wand_sprite: 获取 ability_component 失败")
-                return
-            end
-            obj.sprite_file = sprite_file
-        end,
-        image_file = function (self,image_file)
-            local comp = self:sprite_comp(true)
-            if not comp then
-                _M.logger:error("wand_sprite: 获取 sprite_component 失败")
-                return
-            end
-            comp.image_file = image_file
-        end,
-        sprite_offset = function (self,offset)
-            local comp = self:sprite_comp(true)
-            if not comp then
-                _M.logger:error("wand_sprite: 获取 sprite_component 失败")
-                return
-            end
-            comp.offset_x = offset.x or comp.offset_x
-            comp.offset_y = offset.y or comp.offset_y
-        end,
-        hotspot_offset = function (self,offset)
-            local comp = self:hotspot_comp(true,"shoot_pos")
-            if not comp then
-                _M.logger:error("wand_sprite: 获取 hotspot_component 失败")
-                return
-            end
-            local old = self.hotspot_comp 
-            local x = offset.x or old.x 
-            local y = offset.y or old.y 
-            comp:set_value2("offset",x,y)
-        end
-    }
-}
+---@field sprite_offset Vector2D|nil 法杖在手上显示的图像偏移
+---@field hotspot_offset Vector2D|nil  法杖在手上显示的图像热点偏移(即发射法术的地方)
+Capability.wand_sprite = merge_cap(
+    cap_fields(function(self) return self:ability_comp(true) end,{
+            sprite_file = true,
+        },
+        "无法获取AbilityComponent组件"
+    ),
+    cap_fields(function(self) return self:sprite_comp(true) end,{
+            image_file = true,
+            sprite_offset = {
+                get = function (self,comp)
+                    return Vector2D(comp.offset_x,comp.offset_y)
+                end,
+                set = function (self,comp,offset)
+                    comp.offset_x = offset.x or comp.offset_x
+                    comp.offset_y = offset.y or comp.offset_y
+                end,
+            }
+        },
+        "无法获取SpriteComponent组件"
+    ),
+    cap_fields(function(self) return self:hotspot_comp(true,"shoot_pos") end,{
+            hotspot_offset = {
+                get = function (self,comp)
+                    return Vector2D(comp:get_value2("offset"))
+                end,
+                set =  function (self,comp,offset)
+                    comp:set_value2("offset",offset:unpack())
+                end
+            }
+        },
+        "无法获取HotspotComponent组件"
+    )
+)
+
+
 
 ---@class Capability.sprite
 ---@field alpha number|nil 透明度
-Capability.sprite = {
-    getter = {
-        alpha = function (self)
-            local comp = self:sprite_comp(true)
-            return comp and comp.alpha
-        end,
+Capability.sprite = cap_fields(
+    function(self) return self:sprite_comp(true) end,
+    {
+        alpha = true
     },
-    setter = {}
-}
+    "无法获取SpriteComponent组件"
+)
+
 ---@class Capability.item
 ---@field item_name string|nil 
 ---@field always_use_item_name_in_ui boolean|nil 
----@field inventory_slot table{x:number,y:number} 布局坐标
+---@field inventory_slot Vector2D|nil 布局坐标
 ---@field ui_name string|nil
 ---@field ui_description string|nil
 ---@field ui_sprite string|nil
-Capability.item ={
-    getter = {
-        item_name = function (self)
-            local item  = self:item_comp(true)
-            return item and  item.item_name
-        end,
-        always_use_item_name_in_ui = function (self)
-            local item  = self:item_comp(true)
-            return item and  item.always_use_item_name_in_ui
-        end,      
-        inventory_slot = function (self)
-            local item_comp = self:item_comp(true)
-            if not item_comp then return nil end
-            local x,y = item_comp:get_value2("inventory_slot")
-            local pos = {x=x,y=y}
-            return pos
-        end,
-        ui_name = function (self)
-            local comp = self:ability_comp(true)
-            return comp and comp.ui_name
-        end,
-        ui_description = function (self)
-            local comp = self:item_comp(true)
-            return comp and comp.ui_description
-        end,
-        ui_sprite = function (self)
-            local comp = self:item_comp(true)
-            return comp and comp.ui_sprite
-        end
-    },
-    setter = {
-        item_name = function (self,value)
-            local item = self:item_comp(true)
-            if not item then
-                _M.logger:error("item: 获取 item_comp 对象失败")
-                return
-            end
-            item.item_name = value
-        end,
-        always_use_item_name_in_ui = function (self,value)
-            local item = self:item_comp(true)
-            if not item then
-                _M.logger:error("item: 获取 item_comp 对象失败")
-                return
-            end
-            item.always_use_item_name_in_ui = value
-        end,
-        inventory_slot = function (self,pos)
-            local item_comp = self:item_comp(true)
-            if not item_comp then
-                _M.logger:error("item: 获取 item_comp 对象失败")
-                return
-            end
-            local old_pos = self.inventory_slot
-            local x = pos.x or old_pos.x 
-            local y = pos.y or old_pos.y
-            item_comp:set_value2("inventory_slot",x,y)
-        end,
-        ui_name = function (self,name)
-            local comp = self:ability_comp(true)
-            if not comp then
-                _M.logger:error("item: 获取 ability_component 对象失败")
-                return
-            end
-            comp.ui_name = name
-        end,
-        ui_description = function (self,description)
-            local comp = self:item_comp(true)
-            if not comp then
-                _M.logger:error("item: 获取 item_component 对象失败")
-                return
-            end
-            comp.ui_description = description
-        end,
-        ui_sprite = function (self,sprite)
-            local comp = self:item_comp(true)
-            if not comp then
-                _M.logger:error("item: 获取 item_component 对象失败")
-                return
-            end
-            comp.ui_sprite = sprite
-        end
-    }
-}
+
+Capability.item = merge_cap(
+    cap_fields(function(self) return self:item_comp(true) end,{
+            item_name = true,
+            always_use_item_name_in_ui = true,
+            inventory_slot = {
+                get = function (self,comp)
+                    local x,y = comp:get_value2("inventory_slot")
+                    return Vector2D(x,y)
+                end,
+                set = function (self,comp,pos)
+                    comp:set_value2("inventory_slot",pos:unpack())
+                end,
+            },
+            ui_description = true,
+            ui_sprite = true,
+        },
+        "无法获取ItemComponent组件"
+    ),
+    cap_fields(function(self) return self:ability_comp(true) end,{
+            ui_name = true,
+        },
+        "无法获取AbilityComponent组件"
+    )
+)
 ---@class Capability.action
 ---@field action_id string|nil  修改其会改变除了在世界显示的图像以外的法术属性
 ---@field name string|nil 只读
@@ -612,103 +523,41 @@ Capability.item ={
 ---@field uses_remaining number|nil 当前可用次数,默认为-1
 ---@field custom_xml_file string|nil 只读，法术在法杖内，法杖产生的例子效果等(如黑洞的紫色光粒)
 ---@field permanently_attached boolean|nil 是否为永久法术
-Capability.action = {
-    getter = {
-        action_id = function (self)
-            local comp = self:item_action_comp(true)
-            return comp and comp.action_id
-        end,
-        name= function (self)
-            local data = _actions_cache[self.action_id]
-            return data and GameTextGetTranslatedOrNot(data.name or "")
-        end,
-        description = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and GameTextGetTranslatedOrNot(data.description or "")
-        end,
-        type  = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.type
-        end,
-        spawn_level = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.spawn_level
-        end,
-        spawn_probability = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.spawn_probability
-        end,
-        price = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.price
-        end,
-        related_projectiles = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.related_projectiles
-        end,
-        action = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.action 
-        end,
-        max_uses = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and (data.max_uses or -1 )
-        end,
-        uses_remaining = function (self)
-            local comp = self:item_comp(true)
-            return comp and comp.uses_remaining
-        end,
-        sprite = function (self)
-            local comp = self:sprite_comp(true,"item_identified")
-            return comp and comp.image_file
-        end,
-        sprite_unidentified = function (self)
-            local data = _actions_cache[self.action_id]
-            return data and data.sprite_unidentified
-        end,
-        custom_xml_file = function (self)
-            local data = _actions_cache[self.action_id] 
-            return data and data.custom_xml_file
-        end,
-        permanently_attached = function (self)
-            local comp = self:item_comp(true)
-            return comp and comp.permanently_attached
-        end
-    },
-    setter = {
-        action_id = function (self,action_id)
-            local comp = self:item_action_comp(true)
-            if not comp then
-                _M.logger:error("action: 获取 item_action_comp 对象失败")
-                return
-            end
-            comp.action_id = action_id
-        end,
-        uses_remaining = function (self,uses_remaining)
-            local comp  = self:item_comp(true)
-            if not comp then            
-                _M.logger:error("action: 获取 item_comp 对象失败")
-                return
-            end
-            comp.uses_remaining = uses_remaining
-        end,
-        sprite = function (self,image_file)
-            local comp = self:sprite_comp(true,"item_identified")
-            if not comp then 
-                _M.logger:error("action: 获取 sprite_comp 对象失败")
-                return
-            end
-            comp.image_file = image_file 
-        end,
-        permanently_attached = function (self,permanently_attached)
-            local comp = self:item_comp(true)
-            if not comp then
-                _M.logger:error("action: 获取permanently_attached对象失败")
-            end
-            comp.permanently_attached = permanently_attached
-        end
-    }
-}
+Capability.action = merge_cap(
+    _cache_data_cap(
+        _actions_cache,
+        function(self) return self.action_id end,
+        {
+            name = true,
+            description = true,
+            type = true,
+            spawn_level = true,
+            spawn_probability =true,
+            price = true,
+            related_projectiles = true,
+            action = true,
+            max_uses = true,
+            sprite_unidentified  = true,
+            custom_xml_file = true,
+        }
+    ),
+    cap_fields(function(self) return self:item_action_comp(true) end,{
+            action_id = true,
+        },
+        "无法获取ItemActionComponent组件"
+    ),
+    cap_fields(function(self) return self:sprite_comp(true, "item_identified") end,{
+            sprite = "image_file",
+        },
+        "无法获取SpriteComponent组件"
+    ),
+    cap_fields(function(self) return self:item_comp(true) end,{
+            uses_remaining = true,
+            permanently_attached = true,
+        },
+        "无法获取ItemComponent组件"
+    )
+)
 --[[
     待办：
     天赋类 name = "perk_id",
@@ -736,135 +585,102 @@ Capability.action = {
 ---@field func_enemy function 天赋在敌人身上的特殊效果函数，参数同上（可读）
 ---@field not_in_default_perk_pool boolean 是否不在默认天赋池中生成，默认false（可读）
 ---@field do_not_remove boolean 是否不会被天赋祭坛移除（可读）
-Capability.perk = {
-    getter = {
-        perk_id = function(self)
-            local comps = self:variable_comps(true)
-            for i,comp in ipairs(comps or {}) do
-                if comp.name == 'perk_id' then
-                    return comp.value_string
+Capability.perk = merge_cap(
+    _cache_data_cap(
+        _perks_cache,
+        function(self) return self.perk_id end,
+        {
+            ui_name = true,
+            ui_description = true,
+            ui_icon = true,
+            perk_icon = true,
+            remove_other_perks = true,
+            one_off_effect = true,
+            game_effect = true,
+            game_effect2 = true,
+            particle_effect = true,
+            stackable = true,
+            stackable_how_often_reappears = true,
+            stackable_is_rare = true,
+            stackable_maximum = true,
+            max_in_perk_pool = true,
+            usable_by_enemies = true,
+            func = true,
+            func_remove = true,
+            func_enemy = true,
+            not_in_default_perk_pool = true,
+            do_not_remove = true,
+        }
+    ),{
+        getter = {
+            perk_id = function(self)
+                local comps = self:variable_comps(true)
+                for i,comp in ipairs(comps or {}) do
+                    if comp.name == 'perk_id' then
+                        return comp.value_string
+                    end
                 end
-            end
-            logger:warn('获取perk_id失败')
-            return nil
-        end,
-        count = function(self)
-            local perk_id = self.perk_id
-            local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
-            return tonumber(GlobalsGetValue(flag,'0'))
-        end,
-        ui_name = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.ui_name
-        end,
-        ui_description = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.ui_description
-        end,
-        ui_icon = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.ui_icon
-        end,
-        perk_icon = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.perk_icon
-        end,
-        remove_other_perks = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.remove_other_perks
-        end,
-        one_off_effect = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.one_off_effect
-        end,
-        game_effect = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.game_effect
-        end,
-        game_effect2 = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.game_effect2
-        end,
-        particle_effect = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.particle_effect
-        end,
-        stackable = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.stackable
-        end,
-        stackable_how_often_reappears = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.stackable_how_often_reappears
-        end,
-        stackable_is_rare = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.stackable_is_rare
-        end,
-        stackable_maximum = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.stackable_maximum
-        end,
-        max_in_perk_pool = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.max_in_perk_pool
-        end,
-        usable_by_enemies = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.usable_by_enemies
-        end,
-        func = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.func
-        end,
-        func_remove = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.func_remove
-        end,
-        func_enemy = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.func_enemy
-        end,
-        not_in_default_perk_pool = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.not_in_default_perk_pool
-        end,
-        do_not_remove = function (self)
-            local data = _perks_cache[self.perk_id]
-            return data and data.do_not_remove
-        end,
-    },
-    setter = {
-        perk_id = function (self,perk_id)
-            local comps = self:variable_comps(true)
-            for i,comp in ipairs(comps or {}) do
-                if comp.name == 'perk_id' then
-                    comp.value_string = perk_id
-                    return
+                _M.logger:warn('获取perk_id失败')
+                return nil
+            end,
+            count = function(self)
+                local perk_id = self.perk_id
+                local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
+                return tonumber(GlobalsGetValue(flag,'0'))
+            end,
+        },
+        setter = {
+            perk_id = function (self,perk_id)
+                local comps = self:variable_comps(true)
+                for i,comp in ipairs(comps or {}) do
+                    if comp.name == 'perk_id' then
+                        comp.value_string = perk_id
+                        return
+                    end
                 end
+                _M.logger:error("无法找到对应的perk_id")
+            end,
+            count = function (self,count)
+                local perk_id = self.perk_id
+                local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
+                GlobalsSetValue(flag,tostring(count))
             end
-            logger:error("无法找到对应的perk_id")
-        end,
-        count = function (self,count)
-            local perk_id = self.perk_id
-            local flag = string.format('PERK_PICKED_%s_PICKUP_COUNT',perk_id)
-            GlobalsSetValue(flag,tostring(count))
-        end
+        }
     }
-}
+)
+
+
 ---@class Capability.projectile
 ---@field lifetime number 当前生命时长
+---@field lifetime_add number 增加的生命时长
 ---@field max_lifetime number 最大生命周期
 ---@field on_collision_die boolean 碰撞后死亡
 ---@field friendly_fire boolean 友伤
-Capability.projectile = {
-    getter = {
-    
-    },
-    setter = {
-    }
-}
+---@field damage DamageType 伤害
+---@field type string 投射物类型
+---@field critical_chance number 暴击概率
+---@field critical_mul number 暴击倍率
+---@field who_shot   number 射出者
+Capability.projectile = merge_cap(
+---TODO: 添加更多属性
 
+
+)
+---@class Capability.velocity
+---@field velocity Vector2D 
+Capability.velocity = cap_fields(
+    function(self) return self:get_comp("VelocityComponent") end ,
+    {
+        velocity = {
+            get = function (self,comp)
+                return Vector2D(comp:get_value2("mVelocity"))
+            end,
+            set =  function (self,comp,velocity)
+                comp:set_value2("mVelocity",velocity:unpack())
+            end
+        }
+    }
+)
 
 ---@class Capability.Component 组件类
 ---@field id number 组件ID
@@ -897,6 +713,7 @@ Capability.Component = {
 ---@method set_value2(variable_name:string,value:any) void 设置组件值
 ---@method get_object(object_name:string) Component 获取组件对象
 ---@method get_object_value(object_name:string,variable_name:string) string 获取结构体字段值
+---@method get_object_value2(object_name:string,variable_name:string) ...  获取结构体字段值
 ---@method set_comp_enable(enabled)  设置组件启用
 ---@method add_tag(tag:string) 增加flag
 local Component = class("Component",nil,Capability.Component)
@@ -936,27 +753,25 @@ end
 ---@param object_name string
 ---@return table 代理表proxy
 function Component:get_object(object_name)
-    local M = {}
-    M.__index = function (_,variable_name)
-        
+    local proxy = {}
+    proxy.id = self.id
+    proxy.__index = function (_,variable_name)
         return self:get_object_value2(object_name,variable_name)
     end
-    M.__newindex = function (_,variable_name,...)
+    proxy.__newindex = function (_,variable_name,...)
         return self:set_object_value2(object_name,variable_name,...)
     end
-    return setmetatable(M,M)
+    return setmetatable(proxy,proxy)
 end
 ---@param enabled boolean
 function Component:set_comp_enable(enabled)
     EntitySetComponentIsEnabled(self.entity_id,self.id,enabled)
 end
 
-
 function Component:init(entity_id,comp_id)
     rawset(self,"entity_id",entity_id)
     rawset(self,"id",comp_id)
 end
-
 
 ---移除组件，不处理组件不存在的问题
 function Component:remove()
@@ -1051,17 +866,15 @@ end
 ---@method variable_comps(including_disabled?:boolean,tag?:string) Component[]|nil 获取所有变量存储组件(返回组件代理表数组)
 local Entity = class("Entity",nil,Capability.Entity)
 ---@param entity number|string 
----@param x? number
----@param y? number
-function Entity:init(entity,x,y)
+---@param pos? Vector2D
+function Entity:init(entity,pos)
     if entity == nil or entity == 0 then 
         _M.logger:error("Entity:init: eid is nil")
         return
     end
     if type(entity) == "string" then
-        x = x or 0 
-        y = y or 0 
-        local eid = EntityLoad(entity,x,y)
+        pos = pos or Vector2D(0,0)
+        local eid = EntityLoad(entity,pos:unpack())
         self:init(eid)
         return
     end
@@ -1091,6 +904,7 @@ local Player = class("Player",Animals)
 
 -- 物品类
 ---@class yoiEntity.Item:yoiEntity.Entity,Capability.item,Capability.position
+---@method set_inventory_slot_x(x:number) void 设置物品X坐标
 local Item = class("Item",Entity,
     Capability.item,
     Capability.position
@@ -1101,6 +915,31 @@ local Item = class("Item",Entity,
 local Action_Card=class("Action_Card",Item,
     Capability.action
 )
+---@param str number|string 实体ID|法术ID|实体filename
+---@param pos? Vector2D
+function Action_Card:init(str,pos)
+    if type(str) == "string" then
+        if _actions_cache[str] ~= nil then
+            --输入一个ID，则返回法术
+            pos = pos or Vector2D(0,0)
+            local eid = CreateItemActionEntity(str,pos:unpack())
+            if eid == nil or eid == 0 then
+                _M.logger:error("法术ID无效")
+                return nil 
+            end
+            self:init(eid)
+            return
+        else
+            _M.logger:error("无效的法术卡ID:" .. str)
+            return nil
+        end
+    elseif type(str) == "number" then
+        Item.init(self,str,pos)
+    else
+        _M.logger:error("Action_Card:init: str is not string or number")
+    end    
+end
+
 -- 法杖类
 ---@class yoiEntity.Wand : yoiEntity.Item, Capability.wand_ability,Capability.wand_sprite
 ---@method get_empty_slots() number[] 获取法杖空位置，升序排列
@@ -1124,10 +963,69 @@ local Perk = class("Perk",Entity,
     Capability.position,
     Capability.perk
 )
-
-
-
-
+---@param str string|number 天赋ID|实体ID
+---@param pos? Vector2D
+---@param dont_remove_other_perks? boolean
+function Perk:init(str,pos,dont_remove_other_perks)
+    if type(str) == "string" then
+        if _perks_cache[str] ~= nil then
+            --输入的是天赋ID
+            pos = pos or Vector2D(0,0)
+            local data = _perks_cache[str]
+            local eid = EntityLoad( "data/entities/items/pickup/perk.xml", pos:unpack())
+            if eid == nil then
+                _M.logger:error("天赋ID无效")
+                return
+            end
+            self:init(eid)
+            self:add_comp("SpriteComponent",{
+                image_file = data.perk_icon or "data/items_gfx/perk.xml",  
+                offset_x = 8, 
+                offset_y = 8, 
+                update_transform = true,
+                update_transform_rotation = false,
+            })
+            self:add_comp("UIInfoComponent",{
+                name = data.ui_name,
+            })
+            self:add_comp("ItemComponent",{
+                item_name = data.ui_name,
+                ui_description = data.ui_description,
+                ui_display_description_on_pick_up_hint = true,
+                play_spinning_animation = false,
+                play_hover_animation = true,
+                play_pick_sound = true,        
+            })
+            self:add_comp("SpriteOffsetAnimatorComponent",{
+                sprite_id=-1 ,
+                x_amount= 0 ,
+                x_phase= 0 ,
+                x_phase_offset=0 ,
+                x_speed=0 ,
+                y_amount=2 ,
+                y_speed=3,    
+            })
+            self:add_comp("VariableStorageComponent",{
+                name = "perk_id",
+                value_string = data.id,
+            })
+            if dont_remove_other_perks then
+                self:add_comp("VariableStorageComponent",{
+                    name="perk_dont_remove_others",
+                    value_bool=true,
+                })
+            end
+            return 
+        else
+            _M.logger:error("无效的天赋ID:" .. str)
+            return
+        end
+    elseif type(str) == "number" then
+        Entity.init(self,str,pos)
+    else
+        _M.logger:error("Perk:init: str is not string or number")
+    end
+end
 
 
 
@@ -1404,7 +1302,7 @@ function Animals:pick_up_perk(perk)
     end
 
     --添加UI
-    local entity = M.Entity( "data/entities/misc/perks/enemy_icon.xml",pos.x,pos.y)
+    local entity = M.Entity( "data/entities/misc/perks/enemy_icon.xml",pos)
     local comp = entity:sprite_comp(true)
     comp.image_file = perk.ui_icon
     self:add_child(entity)
@@ -1473,9 +1371,9 @@ function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
     else
         pos = perk.pos
     end
-    local data = _actions_cache[perk.perk_id]
+    local data = _perks_cache[perk.perk_id]
     if data == nil then
-        logger:warn("无法获取对应data")
+        _M.logger:warn("无法获取对应data")
         return 
     end
     
@@ -1536,7 +1434,7 @@ function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
     ---UI图标
     local entity_ui = M:EntityCreateNew("")
     if entity_ui == nil then
-        logger:warn("无法生成entity_ui")
+        _M.logger:warn("无法生成entity_ui")
         return 
     end
     entity_ui:add_comp("UIIconComponent",{
@@ -1616,9 +1514,15 @@ function Player:pick_up_perk(perk,do_cosmetic_fx,kill_other_perks)
     end
     perk:kill()
 end
-
-
-
+---@param x number
+function Item:set_inventory_slot_x(x)
+    local comp = self:item_comp(true)
+    if not comp then
+        _M.logger:warn("无法获取item_comp")
+        return 
+    end
+    comp:set_value2("inventory_slot",x)
+end
 
 -- 获取法术id
 ---@return string|nil  法术id  
@@ -1661,18 +1565,17 @@ function Wand:add_action(action_id,dont_add_when_full,slot_x)
             return nil
         end
     end
-    local action_entity = M:spawn_action_card(action_id)
+    local action_entity = M.Action_Card(action_id)
     if action_entity == nil then
-        logger:error("提供的actions存在错误")
+        _M.logger:error("提供的actions存在错误")
         return nil 
     end
     local empty_slots = self:get_empty_slots()
     self:add_child(action_entity)
-    if slot_x~=nil  then
-        action_entity.inventory_slot = {x=slot_x}
-    elseif #empty_slots > 0 then
-        local slot = empty_slots[#empty_slots]
-        action_entity.inventory_slot = {x=slot}
+    if slot_x~=nil  then    
+        action_entity:set_inventory_slot_x(slot_x)
+    elseif #empty_slots > 0 then 
+        action_entity:set_inventory_slot_x( empty_slots[#empty_slots])
     end
 
 	if action_entity.id ~= 0 then
@@ -1691,16 +1594,15 @@ function Wand:add_actions(actions,dont_add_when_full)
                 return  
             end
         end
-        local action_entity =M:spawn_action_card(action_id)
+        local action_entity =M.Action_Card(action_id)
         if action_entity == nil then
-            logger:error("提供的actions存在错误")
+            _M.logger:error("提供的actions存在错误")
             break 
         end
         self:add_child(action_entity)
         local empty_slots_n = #empty_slots
         if empty_slots_n > 0 then
-            local slot = empty_slots[empty_slots_n]
-            action_entity.inventory_slot = {x=slot}
+            action_entity:set_inventory_slot_x( empty_slots[empty_slots_n] )
             empty_slots[empty_slots_n] = nil 
         end
         if action_entity.id ~= 0 then
@@ -1709,16 +1611,14 @@ function Wand:add_actions(actions,dont_add_when_full)
     end
 end
 ---@param action_id string
----@param slot_x? number
+---@param slot_x? number 法杖位置
 function Wand:add_action_permanent(action_id,slot_x)
     if( action_id == "" ) then return 0 end
-	local action_entity = M:spawn_action_card(action_id)
+	local action_entity = M.Action_Card(action_id)
     if action_entity == nil then
-        logger:error("无法获取" .. action_entity .. " 法术")
+        _M.logger:error("无法获取" .. action_entity .. " 法术")
         return 
     end
-
-
     self:add_child(action_entity)
     if self.deck_capacity then
         self.deck_capacity = self.deck_capacity +1
@@ -1728,7 +1628,7 @@ function Wand:add_action_permanent(action_id,slot_x)
         item_component.permanently_attached = true
 	end
     if slot_x then
-        action_entity.inventory_slot = {x = slot_x}
+        action_entity:set_inventory_slot_x(slot_x)
     end
 	if action_entity ~= nil then
         action_entity:set_comps_enable("enabled_in_world",false)
@@ -1764,6 +1664,8 @@ end
 -------------------------------------------------------------------------------------------
 
 -- 暴露的函数
+M.Vector2D = Vector2D
+M.DamageType = DamageType
 M.Entity = Entity 
 M.Item = Item
 M.Animals = Animals
@@ -1775,82 +1677,11 @@ M.Action_Card = Action_Card
 function M:set_logger(newlogger)
     _M.logger = newlogger
 end
----@param action_id string 法术ID
----@param x number?  
----@param y number?
----@return yoiEntity.Action_Card|nil 
-function M:spawn_action_card(action_id,x,y)
-    local ex = x or 0 
-    local ey = y or 0 
-    local eid = CreateItemActionEntity( action_id,ex,ey)
-    if eid == nil or eid == 0 then
-        logger:warn("法术ID无效")
-       return nil 
-    end
-    return M.Action_Card(eid)
-end
----@param perk_id string
----@param x number
----@param y number
----@param dont_remove_other_perks? boolean
-function M:spawn_perk(perk_id,x,y,dont_remove_other_perks)
-    local data = _perks_cache[perk_id]
-    if not data then 
-        logger:warn("天赋ID无效")
-        return nil 
-    end
-    local eid = EntityLoad( "data/entities/items/pickup/perk.xml", x, y )
-    if eid == nil then
-        logger:warn("无法生成实体")
-        return
-    end
-    local perk = M.Perk(eid)
-    perk:add_comp("SpriteComponent",{
-        image_file = data.perk_icon or "data/items_gfx/perk.xml",  
-		offset_x = 8, 
-		offset_y = 8, 
-		update_transform = true,
-		update_transform_rotation = false,
-    })
-    perk:add_comp("UIInfoComponent",{
-        name = data.ui_name,
-    })
-    perk:add_comp("ItemComponent",{
-        item_name = data.ui_name,
-		ui_description = data.ui_description,
-		ui_display_description_on_pick_up_hint = true,
-		play_spinning_animation = false,
-		play_hover_animation = true,
-		play_pick_sound = true,        
-    })
-    perk:add_comp("SpriteOffsetAnimatorComponent",{
-        sprite_id=-1 ,
-        x_amount= 0 ,
-        x_phase= 0 ,
-        x_phase_offset=0 ,
-        x_speed=0 ,
-        y_amount=2 ,
-        y_speed=3,    
-    })
-    perk:add_comp("VariableStorageComponent",{
-        name = "perk_id",
-		value_string = data.id,
-    })
-    if dont_remove_other_perks then
-        perk:add_comp("VariableStorageComponent",{
-            name="perk_dont_remove_others",
-			value_bool=true,
-        })
-    end
-    return perk
-end
 ---@param name string ??
 ---@return yoiEntity.Entity|nil
 function M:EntityCreateNew(name)
     local eid = EntityCreateNew(name)
     return M.Entity(eid)
 end
-
-
 return M
 
